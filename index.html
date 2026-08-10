@@ -1180,27 +1180,27 @@
             if (score > rank1) {
                 return {
                     title: "キチガイ",
-                    desc: `規格外のヤバいやつ(;´Д\`)`
+                    desc: "規格外のモンスター(;´Д`)"
                 };
             } else if (score > rank2) {
                 return {
-                    title: "有名住人",
-                    desc: `存在感ありヽ(´ー｀)ノ`
+                    title: "ハイエンド",
+                    desc: "有能ヽ(´ー｀)ノ"
                 };
             } else if (score > rank3) {
                 return {
-                    title: "いつもの住人",
-                    desc: `普通(´ー｀)`
+                    title: "普通",
+                    desc: "普通(´ー｀)"
                 };
             } else if (score > rank4) {
                 return {
-                    title: "新参",
-                    desc: `のびしろがある(´ー｀)`
+                    title: "コスパモデル",
+                    desc: "軽めの処理ならいけるかも(;´Д`)"
                 };
             } else {
                 return {
-                    title: "失格",
-                    desc: `買い替えるべき(;´Д\`)`
+                    title: "ポンコツ",
+                    desc: "向いてない(;´Д`)"
                 };
             }
         }
@@ -1411,16 +1411,16 @@
             setTimeout(() => toast.classList.add('opacity-0'), 3000);
         }
 
-        function copyResultToClipboard() {
-            const gpuName = document.getElementById('gpu-name-display').textContent;
-            const money = document.getElementById('result-money-count').textContent.trim();
-            const score = document.getElementById('result-score-val').textContent;
-            const avgFps = document.getElementById('result-avg-fps').textContent;
-            const minFps = document.getElementById('result-min-fps').textContent;
-            const maxFps = document.getElementById('result-max-fps').textContent;
-            const totalFrames = document.getElementById('result-total-frames').textContent;
-            const resolution = document.getElementById('result-resolution').textContent;
-            const rank = document.getElementById('result-rank-title').textContent;
+        async function copyResultToClipboard() {
+            const getText = (id, fallback = '---') => {
+                const el = document.getElementById(id);
+                return el ? el.textContent.trim() : fallback;
+            };
+
+            const gpuName = getText('gpu-name-display', '不明なプロセッサ');
+            const score = getText('result-money-count', '0');
+            const resolution = getText('result-resolution', '不明');
+            const rank = getText('result-rank-title', '未測定');
             const osInfo = getOSInfo();
 
             const presetSelect = document.getElementById('setting-preset');
@@ -1431,22 +1431,73 @@
 
 OS: ${osInfo}
 プロセッサ: ${gpuName}
-負荷設定: ${presetName}
 解像度: ${resolution}
-スコア: ${money}
+負荷設定: ${presetName}
+
+スコア: ${score}
 称号: ${rank}
 
 #ぁMark #GPUベンチマーク
-https://kuhaku.github.io/arbeit-bench`;
+https://kuhaku.github.io/amark/`;
 
-            const tempInput = document.createElement('textarea');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
+            try {
+                // セキュアコンテキスト(HTTPS)かつAPIが存在する場合
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    // APIが使えない環境（HTTPやiframe内の一部など）でのフォールバック
+                    fallbackCopyTextToClipboard(text);
+                }
+            } catch (err) {
+                console.warn('Clipboard API failed, trying fallback...', err);
+                fallbackCopyTextToClipboard(text);
+            }
 
-            showToast('計測結果をコピーしました！');
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // 画面のスクロールを防ぐため、画面外の固定位置に配置
+            textArea.style.top = "-999999px";
+            textArea.style.left = "-999999px";
+            textArea.style.position = "fixed";
+            textArea.setAttribute('readonly', ''); // iOSでの仮想キーボード表示を防ぐ
+
+            document.body.appendChild(textArea);
+
+            const isIOS = navigator.userAgent.match(/ipad|iphone/i);
+            const isMac = navigator.userAgent.match(/macintosh/i);
+
+            // iOSおよびiPadOS向けの特別処理 (Macのタッチデバイス判定含む)
+            if (isIOS || (isMac && navigator.maxTouchPoints && navigator.maxTouchPoints > 2)) {
+                const range = document.createRange();
+                range.selectNodeContents(textArea);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                textArea.setSelectionRange(0, 999999);
+            } else {
+                // PCやAndroid向けの標準的な選択処理
+                textArea.focus();
+                textArea.select();
+            }
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    showToast('コピーに失敗しました。手動でコピーしてください。');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showToast('コピーに失敗しました。手動でコピーしてください。');
+            }
+
+            document.body.removeChild(textArea);
         }
 
         // --- Event Listeners & Init ---
