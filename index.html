@@ -304,7 +304,22 @@
                     </p>
                 </div>
 
-                <!-- Shift Preset Selection in Modal (Vertical) -->
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <div class="items-center">
+                        <button id="btn-copy-result"
+                            class="w-full py-3 px-4 bg-emerald-900 hover:bg-emerald-800 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-emerald-700 text-sm">
+                            <i class="fa-regular fa-copy"></i> ベンチマーク結果をコピー
+                        </button>
+                    </div>
+                    <div class="items-center">
+                        <button
+                            class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-sky-400 text-sm">
+                            <a id="twitter-post"><i class="fa-brands fa-twitter"></i> ツイッターに投稿</a>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preset Selection in Modal (Vertical) -->
                 <div
                     class="flex items-start gap-2 bg-emerald-950/80 p-3.5 rounded-2xl border border-emerald-700/80 text-left mt-2 grid-cols-2">
                     <div class="items-center">
@@ -325,10 +340,6 @@
 
                 <!-- Action Buttons (Vertical) -->
                 <div class="flex flex-col gap-3 pt-2">
-                    <button id="btn-copy-result"
-                        class="w-full py-3 px-4 bg-emerald-900 hover:bg-emerald-800 active:scale-95 text-emerald-100 font-bold rounded-xl transition flex items-center justify-center gap-2 border border-emerald-700 text-sm">
-                        <i class="fa-regular fa-copy"></i> ベンチマーク結果をコピー
-                    </button>
                     <button id="btn-retry"
                         class="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 active:scale-95 text-white font-black rounded-xl transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 text-sm">
                         <i class="fa-solid fa-rotate-right"></i> 選択した設定で再実行
@@ -361,12 +372,12 @@
             class="pointer-events-auto flex flex-col gap-3 bg-emerald-950/90 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-md w-full max-w-2xl mx-auto mb-2">
             <!-- Settings Preset -->
             <div class="flex items-start gap-2 w-full grid-cols-2">
-                <div class="items-center">
+                <div>
                     <label class="text-xs text-emerald-200/80 font-bold items-center gap-1.5 flex">
                         <i class="fa-solid fa-sliders text-amber-400 items-center"></i> 負荷設定:
                     </label>
                 </div>
-                <div class="items-center">
+                <div>
                     <select id="setting-preset"
                         class="bg-emerald-900 border border-emerald-700 text-amber-100 text-xs font-bold rounded-lg px-3 focus:outline-none focus:border-amber-400 w-full cursor-pointer">
                         <option value="light">軽量</option>
@@ -658,7 +669,7 @@
         let totalWages = 0;
         let totalRenderedFrames = 0;
         let totalShifts = 0;
-        let phaseWages = [0, 0, 0, 0, 0, 0, 0]; // フェーズごとの給料を記録する配列
+        let phaseWages = [0, 0, 0, 0, 0, 0, 0]; // フェーズごとのスコアを記録する配列
         let lastTime = performance.now();
 
         let presetMultiplier = 1.0;
@@ -1163,6 +1174,13 @@
 
                 const modal = document.getElementById('result-modal');
                 if (modal) modal.classList.remove('hidden');
+
+                const text = getResult();
+
+                button = document.getElementById('twitter-post');
+                url = 'https://x.com/intent/tweet?text=' + encodeURIComponent(text);
+                button.setAttribute('href', url);
+
             } catch (error) {
                 console.error("ベンチマーク終了処理中にエラーが発生しました:", error);
                 isBenchmarking = false;
@@ -1421,7 +1439,7 @@
             setTimeout(() => toast.classList.add('opacity-0'), 3000);
         }
 
-        async function copyResultToClipboard() {
+        function getResult() {
             const getText = (id, fallback = '---') => {
                 const el = document.getElementById(id);
                 return el ? el.textContent.trim() : fallback;
@@ -1449,6 +1467,12 @@ OS: ${osInfo}
 
 #ぁMark #GPUベンチマーク
 https://kuhaku.github.io/amark/`;
+
+            return text;
+        }
+
+        async function copyResultToClipboard() {
+            const text = getResult();
 
             try {
                 // セキュアコンテキスト(HTTPS)かつAPIが存在する場合
