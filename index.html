@@ -588,6 +588,8 @@
                 .replace(/vs_\d+_\d+ ps_\d+_\d+/g, '')
                 .replace(/\(r\)/gi, '®')
                 .replace(/\(tm\)/gi, '™')
+                .replace(/^Mesa /gi, '')
+                .replace(/\(0x[0-9a-fA-F]+\)/gi, '') // (0x0000008C) のような表記を削除
                 .trim();
 
             // 先頭・末尾の不要な記号やスペースを削除
