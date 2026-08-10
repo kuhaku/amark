@@ -208,7 +208,6 @@
                 <!-- Main Score Highlight -->
                 <div
                     class="bg-emerald-950/90 p-4 md:p-5 rounded-2xl border border-emerald-700/80 relative overflow-hidden">
-                    <div class="absolute -right-8 -top-8 text-8xl opacity-10">💴</div>
 
                     <div class="flex flex-col items-center justify-center">
                         <span id="result-executed-preset-badge"
@@ -221,7 +220,7 @@
                         0
                     </div>
 
-                    <div class="pt-3 mt-2 grid grid-cols-2 gap-2 border-t border-emerald-800">
+                    <div class="pt-3 mt-2 grid grid-cols-3 gap-3 border-t border-emerald-800">
                         <div>
                             <span class="text-[10px] text-emerald-300/70 block">平均 FPS</span>
                             <span class="text-xl md:text-2xl font-black text-cyan-300 font-mono"
@@ -232,6 +231,18 @@
                             <span class="text-xl md:text-2xl font-black text-rose-300 font-mono"
                                 id="result-min-fps">0</span>
                         </div>
+                        <div class="text-left">
+                            <span class="block text-[12px]">
+                                <i id="os-icon" class="fa-brands text-emerald-300/70"></i>
+                                <span id="result-os" class="text-cyan-300 font-black font-mono">OS名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-microchip text-emerald-300/70"></i>
+                                <span id="result-gpu-name" class="text-cyan-300 font-black font-mono">GPU名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-display text-emerald-300/70"></i>
+                                <span id="result-screen-resolution"
+                                    class="text-cyan-300 font-black font-mono">640x480</span></span>
+                        </div>
                     </div>
 
                     <!-- 詳細表示ボタンと内訳リスト -->
@@ -239,7 +250,7 @@
                         <button id="btn-toggle-details"
                             class="w-full py-1.5 text-xs text-emerald-300 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-lg border border-emerald-700/50 transition flex items-center justify-center gap-2">
                             <i id="icon-toggle-details" class="fa-solid fa-chevron-down"></i>
-                            <span id="text-toggle-details">スコア内訳・詳細データを見る</span>
+                            <span id="text-toggle-details">詳細データを見る</span>
                         </button>
 
                         <div id="phase-details-list"
@@ -294,7 +305,6 @@
                 <!-- Rank Title Box -->
                 <div
                     class="p-3 md:p-4 bg-gradient-to-r from-amber-950/60 via-emerald-900/60 to-amber-950/60 border border-amber-400/50 rounded-2xl mt-2">
-                    <div class="text-xs text-amber-300 font-bold">称号</div>
                     <div id="result-rank-title"
                         class="text-xl md:text-2xl font-bold text-amber-300 mt-1 glow-chalk-yellow tracking-wide">
                         ---
@@ -519,6 +529,7 @@
                 const match = ua.match(/Android (\d+(\.\d+)?)/);
                 if (match) osVersion = match[1];
             }
+            else if (ua.indexOf("FreeBSD") !== -1) { osName = "FreeBSD"; }
             else if (ua.indexOf("Linux") !== -1) { osName = "Linux"; }
 
             return osVersion ? `${osName} ${osVersion}` : osName;
@@ -610,6 +621,7 @@
 
             return { vendorType, rendererName: cleanName || "Generic Graphics Device", rawVendor, specs };
         }
+
         function updateGPUUI() {
             const info = getDetailedGPUInfo();
             const nameEl = document.getElementById('gpu-name-display');
@@ -1163,6 +1175,23 @@
                 const presetBadge = document.getElementById('result-executed-preset-badge');
                 if (presetBadge) presetBadge.textContent = `設定: ${getPresetName(preset)}`;
 
+                document.getElementById('result-gpu-name').textContent = document.getElementById('gpu-name-display').textContent.trim();
+                document.getElementById('result-screen-resolution').textContent = document.getElementById('result-resolution').textContent.trim();
+                const osInfo = getOSInfo()
+                document.getElementById('result-os').textContent = osInfo;
+                osIconEl = document.getElementById('os-icon');
+                if (/Windows/.test(osInfo)) {
+                    osIconEl.classList.add("fa-windows");
+                } else if (/Android/.test(osInfo)) {
+                    osIconEl.classList.add("fa-android");
+                } else if (/FreeBSD/.test(osInfo)) {
+                    osIconEl.classList.add("fa-freebsd");
+                } else if (/Linux/.test(osInfo)) {
+                    osIconEl.classList.add("fa-linux");
+                } else if (/iOS|iPadOS|macOS|/.test(osInfo)) {
+                    osIconEl.classList.add("fa-apple");
+                }
+
                 const rankTitle = document.getElementById('result-rank-title');
                 if (rankTitle) rankTitle.textContent = rank.title;
                 const rankDesc = document.getElementById('result-rank-desc');
@@ -1177,8 +1206,8 @@
                 const modal = document.getElementById('result-modal');
                 if (modal) modal.classList.remove('hidden');
 
+                // Twitter ボタン
                 const text = getResult();
-
                 button = document.getElementById('twitter-post');
                 url = 'https://x.com/intent/tweet?text=' + encodeURIComponent(text);
                 button.setAttribute('href', url);
