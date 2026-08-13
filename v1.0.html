@@ -1,0 +1,1624 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぁMark - グラフィック性能ベンチマーク</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=BIZ+UDGothic&family=M+PLUS+Rounded+1c&family=Space+Mono:wght@700;900&display=swap');
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #004040;
+            /* 黒板色 */
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        pre {
+            font-family: 'MS Gothic', 'BIZ UDGothic', 'Space Mono', ui-monospace, monospace;
+        }
+
+        .font-title {
+            font-family: 'BIZ UDGothic', cursive;
+        }
+
+        /* Custom Scrollbar (Chalk & Wood Style) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #002828;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 4px;
+        }
+
+        /* Chalkboard Card Style */
+        .chalk-card {
+            background: rgba(0, 32, 32, 0.9);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(245, 158, 11, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.05);
+        }
+
+        /* Yellow Chalk Glow */
+        .glow-chalk-yellow {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.9), 0 0 20px rgba(245, 158, 11, 0.5);
+        }
+
+        /* Green Chalk Glow */
+        .glow-chalk-green {
+            text-shadow: 0 0 10px rgba(52, 211, 153, 0.9), 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Cyan Chalk Glow */
+        .glow-chalk-cyan {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 0 20px rgba(14, 165, 233, 0.5);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between relative text-white">
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" class="fixed inset-0 z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="relative z-10 flex flex-col min-h-screen justify-between p-2 sm:p-2 md:p-3 pointer-events-none">
+
+        <!-- Top Area Wrapper -->
+        <div class="w-full max-w-2xl mx-auto space-y-2">
+            <!-- Top Header Info Bar (Vertical Layout) -->
+            <header class="flex flex-col gap-3 pointer-events-auto relative z-20 w-full">
+                <!-- Logo & Title -->
+                <div
+                    class="flex items-center justify-center gap-3 bg-emerald-950/90 border border-amber-500/50 px-4 py-2 md:py-3 rounded-2xl shadow-lg backdrop-blur-md">
+                    <div class="text-center">
+                        <h1
+                            class="text-xl md:text-2xl font-black tracking-wider font-title text-amber-300 glow-chalk-yellow leading-tight">
+                            ぁMark
+                            <span
+                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v1.0.0</span>
+                        </h1>
+                        <p class="text-[10px] text-emerald-200/80 mt-0.5">グラフィック性能を計測するあやしいベンチマーク</p>
+                    </div>
+                </div>
+
+                <!-- GPU Detected Info Box -->
+                <div id="gpu-info-box"
+                    class="chalk-card px-4 py-3 rounded-2xl flex flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 overflow-hidden min-w-0">
+                        <div id="gpu-icon-container" class="text-2xl text-cyan-300 shrink-0">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <div class="overflow-hidden min-w-0">
+                            <div
+                                class="text-[10px] text-emerald-200/70 font-bold uppercase tracking-wider flex items-center gap-2">
+                                <span id="gpu-vendor-badge"
+                                    class="px-1 py-0.5 text-[9px] bg-emerald-900 text-emerald-100 rounded border border-emerald-700 whitespace-nowrap">AUTO</span>
+                            </div>
+                            <div id="gpu-name-display" class="text-sm font-black text-amber-200 truncate">
+                                GPUを解析中...
+                            </div>
+                        </div>
+                    </div>
+                    <button id="btn-show-gpu-spec"
+                        class="shrink-0 px-3 py-1.5 bg-emerald-900/80 hover:bg-emerald-800 text-sm text-amber-200 font-bold rounded-lg border border-amber-500/50 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-amber-400"></i>
+                        <span>詳細</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ASCII Art Box Wrapper (Independent) -->
+            <div id="aa-box1" class="w-full z-20 flex justify-center">
+                <!-- ASCII Art Box -->
+                <div class="chalk-card p-3 rounded-2xl border-2 border-emerald-500/50 shadow-2xl min-w-[160px]">
+                    <pre id="aa-display1" class="text-amber-100 text-xs"></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Dynamic Benchmark Stats -->
+        <div id="benchmark-hud" class="hidden my-auto self-center text-center mt-2 mb-2">
+            <div
+                class="bg-emerald-950/90 border-2 border-amber-400/80 p-4 rounded-3xl backdrop-blur-md shadow-2xl inline-block max-w-lg w-full">
+                <!-- Status Badge -->
+                <div class="inline-block px-2 bg-amber-500/20 border border-amber-400/60 rounded-xl text-amber-200 font-bold text-xs mb-3 animate-pulse leading-snug"
+                    id="phase-badge">
+                    フェーズ1: 基本ドローコール＆ポリゴン描画
+                </div>
+
+                <!-- ASCII Art Box -->
+                <div id="aa-box"
+                    class="chalk-card p-1 rounded-2xl border-2 border-emerald-500/50 shadow-2xl min-w-[160px]">
+                    <pre id="aa-display" class="text-amber-100 text-xs text-left"></pre>
+                </div>
+
+                <!-- Main Counter -->
+                <div class="space-y-1">
+                    <div class="text-xs text-emerald-200/80 font-bold">現在のスコア</div>
+                    <div class="text-4xl md:text-6xl font-black text-emerald-300 glow-chalk-green font-mono tracking-tight"
+                        id="hud-money-count">
+                        0
+                    </div>
+                    <div class="text-xs text-amber-300 font-bold" id="hud-shift-count">
+                        (ループ数: 0 回)
+                    </div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-4 gap-2 mt-6 pt-4 border-t border-emerald-800/80 text-center">
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">FPS</div>
+                        <div id="hud-fps" class="text-lg sm:text-xl font-bold text-cyan-300 font-mono leading-tight">00
+                        </div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">最小 FPS</div>
+                        <div id="hud-min-fps"
+                            class="text-lg sm:text-xl font-bold text-rose-300 font-mono leading-tight">00</div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">画面アイテム</div>
+                        <div id="hud-job-objects"
+                            class="text-lg sm:text-xl font-bold text-amber-300 font-mono leading-tight">0</div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">残り時間</div>
+                        <div id="hud-timer"
+                            class="text-lg sm:text-xl font-bold text-emerald-300 font-mono leading-tight">35s</div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mt-4 flex justify-center items-center gap-3">
+                    <div class="w-full bg-emerald-950 rounded-full h-3 overflow-hidden border border-emerald-700">
+                        <div id="hud-progress-bar"
+                            class="bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 h-full w-0% transition-all duration-200">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Modal Dialog -->
+        <div id="result-modal"
+            class="hidden pointer-events-auto fixed inset-0 bg-emerald-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-2">
+            <div
+                class="chalk-card max-w-xl w-full p-2 md:p-3 rounded-3xl border-2 border-amber-400 shadow-2xl space-y-2 text-center max-h-[95vh] overflow-y-auto">
+                <!-- Header -->
+                <div>
+                    <h2 class="text-2xl md:text-3xl font-bold text-amber-100 tracking-wide mt-2">ベンチマーク結果</h2>
+                </div>
+
+                <!-- Main Score Highlight -->
+                <div
+                    class="bg-emerald-950/90 p-4 md:p-5 rounded-2xl border border-emerald-700/80 relative overflow-hidden">
+
+                    <div class="flex flex-col items-center justify-center">
+                        <span id="result-executed-preset-badge"
+                            class="px-2 py-0.5 mb-2 bg-emerald-800 text-amber-200 text-[10px] rounded border border-emerald-600 font-bold">---</span>
+                        <span
+                            class="text-xs text-emerald-200/80 font-bold uppercase tracking-widest leading-tight">スコア</span>
+                    </div>
+                    <div class="text-4xl md:text-5xl font-black text-emerald-300 glow-chalk-green font-mono tracking-tight mt-1"
+                        id="result-money-count">
+                        0
+                    </div>
+
+                    <div class="pt-3 mt-2 grid grid-cols-3 gap-3 border-t border-emerald-800">
+                        <div>
+                            <span class="text-[10px] text-emerald-300/70 block">平均 FPS</span>
+                            <span class="text-xl md:text-2xl font-black text-cyan-300 font-mono"
+                                id="result-avg-fps">0</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-emerald-300/70 block">最低 1% FPS</span>
+                            <span class="text-xl md:text-2xl font-black text-rose-300 font-mono"
+                                id="result-min-fps">0</span>
+                        </div>
+                        <div class="text-left">
+                            <span class="block text-[12px]">
+                                <i id="os-icon" class="fa-brands text-emerald-300/70"></i>
+                                <span id="result-os" class="text-cyan-300 font-black font-mono">OS名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-microchip text-emerald-300/70"></i>
+                                <span id="result-gpu-name" class="text-cyan-300 font-black font-mono">GPU名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-display text-emerald-300/70"></i>
+                                <span id="result-screen-resolution"
+                                    class="text-cyan-300 font-black font-mono">640x480</span></span>
+                        </div>
+                    </div>
+
+                    <!-- 詳細表示ボタンと内訳リスト -->
+                    <div class="pt-3 border-t border-emerald-800/50 mt-3">
+                        <button id="btn-toggle-details"
+                            class="w-full py-1.5 text-xs text-emerald-300 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-lg border border-emerald-700/50 transition flex items-center justify-center gap-2">
+                            <i id="icon-toggle-details" class="fa-solid fa-chevron-down"></i>
+                            <span id="text-toggle-details">詳細データを見る</span>
+                        </button>
+
+                        <div id="phase-details-list"
+                            class="hidden mt-3 space-y-2 bg-emerald-900/30 p-3 rounded-lg border border-emerald-800/50 text-left">
+                            <div class="border-b border-emerald-800/50 pb-2 mb-2 space-y-1">
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">最高 FPS</span>
+                                    <span class="font-bold text-cyan-300 font-mono" id="result-max-fps">0</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">総処理フレーム数</span>
+                                    <span class="font-bold text-amber-300 font-mono" id="result-total-frames">0</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">実行解像度 (DPR反映)</span>
+                                    <span class="font-bold text-amber-300 font-mono" id="result-resolution">---</span>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-emerald-400 font-bold mb-1">フェーズ別内訳</div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">1: 基本ドローコール</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-1">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">2: 動的ライティング</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-2">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">3: 大量パーティクル</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-3">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">4: 頂点変形シェーダー</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-4">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">5: 半透明ブレンド</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-5">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">6: 物理ベース屈折</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-6">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">7: 複合超高負荷</span>
+                                <span class="font-bold text-amber-300 font-mono" id="wage-phase-7">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rank Title Box -->
+                <div
+                    class="p-3 md:p-4 bg-gradient-to-r from-amber-950/60 via-emerald-900/60 to-amber-950/60 border border-amber-400/50 rounded-2xl mt-2">
+                    <div id="result-rank-title"
+                        class="text-xl md:text-2xl font-bold text-amber-300 mt-1 glow-chalk-yellow tracking-wide">
+                        ---
+                    </div>
+                    <p id="result-rank-desc" class="text-xs text-emerald-100/90 mt-2 leading-relaxed">
+                        ---
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <div class="items-center">
+                        <button id="btn-copy-result"
+                            class="w-full py-3 px-4 bg-emerald-900 hover:bg-emerald-800 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-emerald-700 text-sm">
+                            <i class="fa-regular fa-copy"></i> 結果をコピー
+                        </button>
+                    </div>
+                    <div class="items-center">
+                        <button
+                            class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-sky-400 text-sm">
+                            <a id="twitter-post"><i class="fa-brands fa-twitter"></i> Twitterに投稿</a>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preset Selection in Modal (Vertical) -->
+                <div
+                    class="flex items-start gap-2 bg-emerald-950/80 p-3.5 rounded-2xl border border-emerald-700/80 text-left mt-2 grid-cols-2">
+                    <div class="items-center">
+                        <label class="text-xs text-amber-200/90 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-sliders text-amber-400"></i> 負荷設定:
+                        </label>
+                    </div>
+                    <div class="items-center">
+                        <select id="setting-preset-modal"
+                            class="bg-emerald-900 border border-emerald-700 text-amber-100 text-xs font-bold rounded-lg px-3 focus:outline-none focus:border-amber-400 w-full cursor-pointer">
+                            <option value="light">軽量</option>
+                            <option value="normal">標準</option>
+                            <option value="heavy">激重</option>
+                            <option value="extreme">過労死ブラック</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (Vertical) -->
+                <div class="flex flex-col gap-3 pt-2">
+                    <button id="btn-retry"
+                        class="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 active:scale-95 text-white font-black rounded-xl transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-rotate-right"></i> 選択した設定で再実行
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GPU Spec Modal -->
+        <div id="gpu-spec-modal"
+            class="hidden pointer-events-auto fixed inset-0 bg-emerald-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="chalk-card max-w-2xl w-full p-6 rounded-3xl border border-amber-400/60 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b border-emerald-800 pb-3">
+                    <h3 class="text-lg font-black text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-amber-400"></i> 詳細情報
+                    </h3>
+                    <button id="btn-close-gpu-spec" class="text-emerald-300 hover:text-white text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="gpu-spec-list" class="space-y-2 text-xs font-mono max-h-96 overflow-y-auto pr-2">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls Bar (Vertical Layout) -->
+        <footer
+            class="pointer-events-auto flex flex-col gap-3 bg-emerald-950/90 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-md w-full max-w-2xl mx-auto mb-2">
+            <!-- Settings Preset -->
+            <div class="flex items-start gap-2 w-full grid-cols-2">
+                <div>
+                    <label class="text-xs text-emerald-200/80 font-bold items-center gap-1.5 flex">
+                        <i class="fa-solid fa-sliders text-amber-400 items-center"></i> 負荷設定:
+                    </label>
+                </div>
+                <div>
+                    <select id="setting-preset"
+                        class="bg-emerald-900 border border-emerald-700 text-amber-100 text-xs font-bold rounded-lg px-3 focus:outline-none focus:border-amber-400 w-full cursor-pointer">
+                        <option value="light">軽量</option>
+                        <option value="normal" selected>標準</option>
+                        <option value="heavy">激重</option>
+                        <option value="extreme">過労死ブラック</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Start Button -->
+            <div class="w-full">
+                <button id="btn-start-benchmark"
+                    class="w-full px-4 py-2 md:py-2 bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 bg-[length:200%_auto] hover:bg-right transition-all duration-500 text-white font-black text-base md:text-lg tracking-wider rounded-xl shadow-lg shadow-amber-500/30 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>ベンチマーク開始</span>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-emerald-900 text-amber-200 px-4 py-2 rounded-xl text-xs font-bold border border-amber-500/50 shadow-xl opacity-0 transition-opacity pointer-events-none z-50">
+        メッセージ
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script>
+
+        const asciiArts = {
+            'pc': [
+                "ｐ\n\n ＿＿＿(Д`;)\n＼:::::ﾉ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟ\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟｎ\n\n ＿＿＿(Д`;)\n＼:::::ﾉ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｓ\n\n ＿＿＿(Д`;)\n＼::::／(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｼ\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｼ!\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+            ],
+            'gear': [
+                " ＿\n ／|＿＿＿＿＿＿＿＿\n|／／／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿\n `)／|＿＿＿＿＿＿＿\n￣|／／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿＿\n ー`)／|＿＿＿＿＿＿\n￣￣|／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿＿＿\n(´ー`)／|＿＿＿＿＿\n￣￣￣|／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　 ＿＿＿＿\n ／(´ー`)／|＿＿＿＿\n|￣￣￣￣|／／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　 ＿＿＿＿\n＿ ／(´ー`)／|＿＿＿\n／|￣￣￣￣|／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　 ＿＿＿＿\n＿＿ ／(´ー`)／|＿＿\n／／|￣￣￣￣|／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　 ＿＿＿＿\n＿＿＿ ／(´ー`)／|＿\n／／／|￣￣￣￣|／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　 ＿＿＿＿\n＿＿＿＿ ／(´ー`)／|\n／／／／|￣￣￣￣|／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　 ＿＿＿＿\n＿＿＿＿ ／(´ー`)\n／／／／／|￣￣￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　 ＿＿＿\n＿＿＿＿＿＿ ／(´ー\n／／／／／／|￣￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　　 ＿＿\n＿＿＿＿＿＿＿ ／(´\n／／／／／／／|￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　　　 ＿\n＿＿＿＿＿＿＿＿ ／(\n／／／／／／／／|￣\n￣￣￣￣￣￣￣￣￣",
+                "　\n＿＿＿＿＿＿＿＿＿ ／\n／／／／／／／／／|\n￣￣￣￣￣￣￣￣￣",
+            ],
+            'baton': [
+                "　 /＿+ヽ ||\n　(;´Д`)ﾉ\n ノ(　　)\n　 ノωヽ",
+                "　 /＿+ヽ　//\n　(;´Д`)ノ\n　 (ﾉ　 )\n　 ノωヽ",
+                "　 /＿+ヽ\n　(;´Д`)\n　ﾉ(　　)－＝＝\n　 ノωヽ",
+                "　 /＿+ヽ　//\n　(;´Д`)ノ\n　 (ﾉ　 )\n　 ノωヽ",
+            ],
+            'pill': [
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　△\n　　　　　○\n　　　　　□\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　○\n　　　　　□\n　　　　　△\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　□\n　　　　　△\n　　　　　○\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+            ],
+            'pizza_slice': [
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　(⌒⌒⌒)\n　　|　　 |\n　　 |　　 |\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　 (⌒⌒⌒)\n　　|　　 |\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　 (⌒⌒⌒)\n　 ＼　　＼\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n (⌒⌒⌒)\n　＼　　＼\n　　＼　　＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　 (⌒⌒⌒)\n　 ＼　　＼\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　 (⌒⌒⌒)\n　　|　　 |\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　(⌒⌒⌒)\n　　|　　 |\n　　 |　　 |\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　 (⌒⌒⌒)\n　　　 /　　/\n　　　/　　/\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　　　(⌒⌒⌒)\n　　　　　／　　／\n　　　　／　　／\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　 (⌒⌒⌒)\n　　　 /　　/\n　　　/　　/\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+            ],
+            'crystal': [
+                " \n \n ",
+                "         (Д`\n          (┌\n           <",
+                "    (Д`; )\n     (┌ノ)─\n      <  ヽ",
+                "(Д`; )   ＿＿＿\n (┌ノ)─|ｾﾝﾁｭﾘｰ|\n  <  ヽ   ￣◎￣",
+                "; )  ＿＿＿\nノ)─|ｾﾝﾁｭﾘｰ|\n ヽ   ￣◎￣",
+                " ＿＿＿\n|ｾﾝﾁｭﾘｰ|\n ￣◎￣",
+                " \n \n ",
+            ],
+            'penlight': [
+                "　\n(;´Д`)\n (ヽ ﾉ)\n< ●●>",
+                "　　　　●\n(;´Д`)ﾉ\n (ヽ　)\n　> ●>",
+                "　\n(;´Д`)\n (ヽ　)ー●\n　> ●>",
+                "　\n(;´Д`)\n (ヽ ﾉ)\n< ●●>",
+                "　\n　(;´Д`)\n●ー(　 ﾉ)\n　　 > ●>",
+                "●\nヽ(;´Д`)\n　 (　 ﾉ)\n　 > ●>",
+                "　　　　　●\n　(;´Д`)ﾉ\n　ﾉ(　　)へ\n● くω",
+                "●　　　　●\nヽ(;´Д`)ﾉ\n　 (　　)\n　 くω ヽ",
+
+            ]
+        };
+        let lastEarnedFiveThousand = 0;
+        let currentAaIndex = 0;
+
+        // --- OS & GPU Detection Logic ---
+        function getOSInfo() {
+            let osName = "Unknown OS";
+            let osVersion = "";
+            const ua = navigator.userAgent;
+
+            if (ua.indexOf("Windows NT 10.0") !== -1) { osName = "Windows"; osVersion = "10 / 11"; }
+            else if (ua.indexOf("Windows NT 6.3") !== -1) { osName = "Windows"; osVersion = "8.1"; }
+            else if (ua.indexOf("Windows NT 6.2") !== -1) { osName = "Windows"; osVersion = "8"; }
+            else if (ua.indexOf("Windows NT 6.1") !== -1) { osName = "Windows"; osVersion = "7"; }
+            else if (/iPhone|iPod/.test(ua)) {
+                osName = "iOS";
+                const match = ua.match(/OS (\d+[._]\d+[._]?\d*) like Mac OS X/);
+                if (match) osVersion = match[1].replace(/_/g, ".");
+            }
+            else if (ua.indexOf("iPad") !== -1) {
+                osName = "iPadOS";
+                const match = ua.match(/OS (\d+[._]\d+[._]?\d*) like Mac OS X/);
+                if (match) osVersion = match[1].replace(/_/g, ".");
+            }
+            else if (ua.indexOf("Mac OS X") !== -1) {
+                // iOS13以降のiPad等のデスクトップ表示対応を含む
+                if (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) {
+                    osName = "iOS";
+                } else {
+                    osName = "macOS";
+                    const match = ua.match(/Mac OS X (\d+[._]\d+[._]?\d*)/);
+                    if (match) osVersion = match[1].replace(/_/g, ".");
+                }
+            }
+            else if (/Android/.test(ua)) {
+                osName = "Android";
+                const match = ua.match(/Android (\d+(\.\d+)?)/);
+                if (match) osVersion = match[1];
+            }
+            else if (ua.indexOf("FreeBSD") !== -1) { osName = "FreeBSD"; }
+            else if (ua.indexOf("Linux") !== -1) { osName = "Linux"; }
+
+            return osVersion ? `${osName} ${osVersion}` : osName;
+        }
+
+        function getDetailedGPUInfo() {
+            const canvas = document.createElement('canvas');
+            let gl = canvas.getContext('webgl2') || canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+            let rawRenderer = '不明なグラフィックデバイス';
+            let rawVendor = '不明なベンダー';
+            let vendorType = 'generic';
+            let specs = [];
+
+            if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    rawVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+                    rawRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+                } else {
+                    rawRenderer = gl.getParameter(gl.RENDERER) || '';
+                    rawVendor = gl.getParameter(gl.VENDOR) || '';
+                }
+
+                const pr = Math.min(window.devicePixelRatio, 2);
+                const w = Math.round(window.innerWidth * pr);
+                const h = Math.round(window.innerHeight * pr);
+
+                specs = [
+                    { name: 'OS (動作環境)', value: getOSInfo() },
+                    { name: '実行解像度 (DPR反映)', value: `${w} x ${h}` },
+                    { name: 'WebGL バージョン', value: gl.getParameter(gl.VERSION) },
+                    { name: 'シェーダー言語バージョン', value: gl.getParameter(gl.SHADING_LANGUAGE_VERSION) },
+                    { name: '最大テクスチャサイズ', value: gl.getParameter(gl.MAX_TEXTURE_SIZE) + ' px' },
+                    { name: '最大キューブマップサイズ', value: gl.getParameter(gl.MAX_CUBE_MAP_TEXTURE_SIZE) + ' px' },
+                    { name: '最大レンダーバッファサイズ', value: gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) + ' px' },
+                    { name: '頂点シェーダー Uniform', value: gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) },
+                    { name: 'フラグメントシェーダー Uniform', value: gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) },
+                    { name: '最大ビューポート寸法', value: gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[0] + ' x ' + gl.getParameter(gl.MAX_VIEWPORT_DIMS)?.[1] }
+                ];
+
+                const ext = gl.getExtension('EXT_texture_filter_anisotropic') || gl.getExtension('WEBKIT_EXT_texture_filter_anisotropic');
+                if (ext) {
+                    specs.push({ name: '最大異方性フィルタリング (AF)', value: gl.getParameter(ext.MAX_TEXTURE_MAX_ANISOTROPY_EXT) + 'x' });
+                }
+            }
+
+            let cleanName = rawRenderer;
+
+            // ANGLE名のクリーンアップ
+            if (cleanName.includes('ANGLE')) {
+                // ANGLE (Vendor, Renderer, API) の形式
+                const match = cleanName.match(/ANGLE\s*\([^,]+,\s*([^,]+)/);
+                if (match && match[1]) {
+                    cleanName = match[1];
+                } else {
+                    // それ以外の括弧つきフォーマット
+                    cleanName = cleanName.replace(/ANGLE\s*\(([^)]+)\)/, '$1');
+                }
+            }
+
+            cleanName = cleanName
+                .replace(/ANGLE/gi, '') // 括弧なしのANGLEを削除
+                .replace(/Metal\s*Renderer:/gi, '') // Metal Renderer: を削除
+                .replace(/Direct3D\d+.*/gi, '')
+                .replace(/OpenGL.*/gi, '')
+                .replace(/vs_\d+_\d+ ps_\d+_\d+/g, '')
+                .replace(/\(r\)/gi, '®')
+                .replace(/\(tm\)/gi, '™')
+                .replace(/^Mesa /gi, '')
+                .replace(/\(0x[0-9a-fA-F]+\)/gi, '') // (0x0000008C) のような表記を削除
+                .trim();
+
+            // 先頭・末尾の不要な記号やスペースを削除
+            cleanName = cleanName.replace(/^[\s,:-]+|[\s,:-]+$/g, '');
+
+            const nameUpper = cleanName.toUpperCase();
+            const vendorUpper = rawVendor.toUpperCase();
+
+            if (nameUpper.includes('NVIDIA') || vendorUpper.includes('NVIDIA')) {
+                vendorType = 'nvidia';
+            } else if (nameUpper.includes('AMD') || nameUpper.includes('RADEON') || vendorUpper.includes('ATI')) {
+                vendorType = 'amd';
+            } else if (nameUpper.includes('INTEL') || vendorUpper.includes('INTEL')) {
+                vendorType = 'intel';
+            } else if (nameUpper.includes('APPLE')) {
+                vendorType = 'apple';
+            }
+
+            return { vendorType, rendererName: cleanName || "Generic Graphics Device", rawVendor, specs };
+        }
+
+        function updateGPUUI() {
+            const info = getDetailedGPUInfo();
+            const nameEl = document.getElementById('gpu-name-display');
+            const badgeEl = document.getElementById('gpu-vendor-badge');
+            const iconEl = document.getElementById('gpu-icon-container');
+
+            nameEl.textContent = info.rendererName;
+
+            if (info.vendorType === 'nvidia') {
+                badgeEl.textContent = 'NVIDIA';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-emerald-600 text-white rounded font-bold border border-emerald-400';
+                iconEl.className = 'text-2xl text-emerald-300 shrink-0';
+            } else if (info.vendorType === 'amd') {
+                badgeEl.textContent = 'AMD';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-red-600 text-white rounded font-bold border border-red-400';
+                iconEl.className = 'text-2xl text-red-300 shrink-0';
+            } else if (info.vendorType === 'intel') {
+                badgeEl.textContent = 'Intel';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-blue-600 text-white rounded font-bold border border-blue-400';
+                iconEl.className = 'text-2xl text-blue-300 shrink-0';
+            } else if (info.vendorType === 'apple') {
+                badgeEl.textContent = 'Apple';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-gray-600 text-white rounded font-bold border border-blue-400';
+                iconEl.className = 'text-2xl text-gray-300 shrink-0';
+            } else {
+                badgeEl.textContent = 'GPU';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-amber-600 text-white rounded font-bold border border-amber-400';
+                iconEl.className = 'text-2xl text-amber-300 shrink-0';
+            }
+
+            const specListEl = document.getElementById('gpu-spec-list');
+            specListEl.innerHTML = '';
+            info.specs.forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between py-1 border-b border-emerald-800 text-emerald-100';
+                row.innerHTML = `<span class="text-emerald-300/70">${s.name}:</span><span class="font-bold text-amber-300">${s.value}</span>`;
+                specListEl.appendChild(row);
+            });
+        }
+
+        // --- Three.js 3D Engine Setup (Chalkboard Dark Teal Environment) ---
+        let scene, camera, renderer;
+        let jobObjectsGroup = [];
+        let dynamicLights = [];
+        let guardParticles;
+        let hallucinationMesh;
+        let megaPizzaMesh; // The Ultimate Phase Mesh
+
+        let isBenchmarking = false;
+        let benchStartTime = 0;
+        const BENCH_DURATION = 35; // 35 Seconds
+
+        // Metrics
+        let frameCount = 0;
+        let fps = 60;
+        let minFps = 999;
+        let maxFps = 0;
+        let fpsHistory = [];
+        let totalWages = 0;
+        let totalRenderedFrames = 0;
+        let totalShifts = 0;
+        let phaseWages = [0, 0, 0, 0, 0, 0, 0]; // フェーズごとのスコアを記録する配列
+        let lastTime = performance.now();
+
+        let presetMultiplier = 1.0;
+        let currentSpawnedType = '';
+
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+
+            // Fog configured to match #004040
+            scene.fog = new THREE.FogExp2(0x004040, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 28);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+            renderer.setClearColor(0x004040, 1.0); // 黒板色背景
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xfff5ea, 1.3);
+            dirLight.position.set(20, 30, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            // Dynamic Point Lights for Factory
+            for (let i = 0; i < 6; i++) {
+                const light = new THREE.PointLight(0x38bdf8, 0, 25);
+                scene.add(light);
+                dynamicLights.push(light);
+            }
+
+            // Stage Counter Base
+            createWorkStage();
+
+            // Guard Light Particles
+            createGuardLightParticles(50000);
+
+            // Hallucination Mesh
+            createHallucinationMesh();
+
+            // Mega Pizza Mesh
+            createMegaPizza();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function createWorkStage() {
+            const geometry = new THREE.CylinderGeometry(15, 16, 2, 64);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x111827,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const stage = new THREE.Mesh(geometry, material);
+            stage.position.y = -3;
+            stage.receiveShadow = true;
+            scene.add(stage);
+        }
+
+        function createJobItemMesh(type = 'pc') {
+            const group = new THREE.Group();
+
+            if (type === 'pc') {
+                // Mini Laptop PC
+                const baseGeo = new THREE.BoxGeometry(1.8, 0.15, 1.2);
+                const pcMat = new THREE.MeshStandardMaterial({
+                    color: 0x94a3b8,
+                    roughness: 0.6,
+                    metalness: 0.5
+                });
+                const base = new THREE.Mesh(baseGeo, pcMat);
+                base.position.z = 0.5;
+                group.add(base);
+
+                // Keyboard keys hint (dark pad)
+                const kbGeo = new THREE.BoxGeometry(1.6, 0.16, 0.6);
+                const kbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 });
+                const kb = new THREE.Mesh(kbGeo, kbMat);
+                kb.position.z = 0.5;
+                group.add(kb);
+
+                // Monitor
+                const monitorGeo = new THREE.BoxGeometry(1.8, 1.2, 0.1);
+                const monitor = new THREE.Mesh(monitorGeo, pcMat);
+                monitor.position.y = 0.6;
+                monitor.position.z = -0.1;
+                monitor.rotation.x = -0.15; // slightly tilted back
+                group.add(monitor);
+
+                // Glowing Screen
+                const screenGeo = new THREE.BoxGeometry(1.6, 1.0, 0.12);
+                const screenMat = new THREE.MeshStandardMaterial({
+                    color: 0x38bdf8,
+                    emissive: 0x0284c7,
+                    emissiveIntensity: 0.6,
+                    roughness: 0.2
+                });
+                const screen = new THREE.Mesh(screenGeo, screenMat);
+                screen.position.y = 0.6;
+                screen.position.z = -0.1;
+                screen.rotation.x = -0.15;
+                group.add(screen);
+
+            } else if (type === 'gear') {
+                // 金属の歯車
+                const gearGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.4, 16);
+                const gearMat = new THREE.MeshStandardMaterial({
+                    color: 0x94a3b8,
+                    roughness: 0.4,
+                    metalness: 0.8
+                });
+                const gear = new THREE.Mesh(gearGeo, gearMat);
+                group.add(gear);
+
+                // 歯車の中心の穴
+                const holeGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.45, 16);
+                const holeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a });
+                const hole = new THREE.Mesh(holeGeo, holeMat);
+                group.add(hole);
+
+                // 歯車の歯
+                const toothGeo = new THREE.BoxGeometry(0.3, 0.4, 0.6);
+                for (let i = 0; i < 8; i++) {
+                    const tooth = new THREE.Mesh(toothGeo, gearMat);
+                    const angle = (i / 8) * Math.PI * 2;
+                    tooth.position.set(Math.cos(angle) * 1.2, 0, Math.sin(angle) * 1.2);
+                    tooth.rotation.y = -angle;
+                    group.add(tooth);
+                }
+
+            } else if (type === 'baton') {
+                // Traffic Guard Baton
+                const batonGeo = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 16);
+                const batonMat = new THREE.MeshStandardMaterial({
+                    color: 0xff3300,
+                    emissive: 0xff2200,
+                    emissiveIntensity: 0.8,
+                    roughness: 0.2
+                });
+                const baton = new THREE.Mesh(batonGeo, batonMat);
+
+                const handleGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.8, 16);
+                const handleMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                handle.position.y = -1.65;
+
+                group.add(baton);
+                group.add(handle);
+            } else if (type === 'pill') {
+                // 薬
+                const pillGeo = new THREE.SphereGeometry(0.3, 16, 16);
+                const pillMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.3 });
+                const pill = new THREE.Mesh(pillGeo, pillMat);
+                pill.scale.set(1, 2, 1);
+                pill.rotation.z = Math.PI / 2;
+                group.add(pill);
+
+                const pillHalfMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+                const pillHalfGeo = new THREE.SphereGeometry(0.31, 16, 16, 0, Math.PI);
+                const pillHalf = new THREE.Mesh(pillHalfGeo, pillHalfMat);
+                pillHalf.scale.set(1, 2, 1);
+                pillHalf.rotation.z = Math.PI / 2;
+                group.add(pillHalf);
+            } else if (type === 'pizza_slice') {
+                // ピザ
+                const sliceGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.15, 16, 1, false, 0, Math.PI / 3);
+                const sliceMat = new THREE.MeshStandardMaterial({ color: 0xcd853f, roughness: 0.8 });
+                const slice = new THREE.Mesh(sliceGeo, sliceMat);
+
+                const cheeseGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.16, 16, 1, false, 0, Math.PI / 3.1);
+                const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3 });
+                const cheese = new THREE.Mesh(cheeseGeo, cheeseMat);
+
+                const pepperoniGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.2, 16);
+                const pepperoniMat = new THREE.MeshStandardMaterial({ color: 0xb22222, roughness: 0.6 });
+                const pepperoni = new THREE.Mesh(pepperoniGeo, pepperoniMat);
+
+                const r = 0.4;
+                pepperoni.position.set(Math.cos(Math.PI / 6) * r, 0, Math.sin(Math.PI / 6) * r);
+
+                group.add(slice);
+                group.add(cheese);
+                group.add(pepperoni);
+            } else if (type === 'crystal') {
+                // 宝石
+                const crystalGeo = new THREE.OctahedronGeometry(1.2, 0);
+                const crystalMat = new THREE.MeshPhysicalMaterial({
+                    color: 0x88ccff,
+                    metalness: 0.1,
+                    roughness: 0.1,
+                    transmission: 0.9,
+                    ior: 1.5,
+                    thickness: 0.5
+                });
+                const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+                group.add(crystal);
+            } else if (type === 'penlight') {
+                // ペンライト
+                const handleGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 16);
+                const handleMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                handle.position.y = -1;
+
+                const lightGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.8, 16);
+                const colors = [0xff00ff, 0x00ffff, 0x00ff00, 0xffff00, 0xff3300];
+                const col = colors[Math.floor(Math.random() * colors.length)];
+                const lightMat = new THREE.MeshStandardMaterial({
+                    color: col,
+                    emissive: col,
+                    emissiveIntensity: 1.5,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const light = new THREE.Mesh(lightGeo, lightMat);
+                light.position.y = 0.3;
+
+                group.add(handle);
+                group.add(light);
+            }
+
+            return group;
+        }
+
+        function createGuardLightParticles(count) {
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(count * 3);
+
+            for (let i = 0; i < count; i++) {
+                pPos[i * 3] = (Math.random() - 0.5) * 50;
+                pPos[i * 3 + 1] = (Math.random() - 0.5) * 50;
+                pPos[i * 3 + 2] = (Math.random() - 0.5) * 50;
+            }
+
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+
+            const pMat = new THREE.PointsMaterial({
+                color: 0xff4500,
+                size: 0.4,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+
+            guardParticles = new THREE.Points(pGeo, pMat);
+            guardParticles.visible = false;
+            scene.add(guardParticles);
+        }
+
+        function createHallucinationMesh() {
+            const geo = new THREE.TorusKnotGeometry(3.5, 1.2, 150, 32);
+
+            const mat = new THREE.MeshNormalMaterial({
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            hallucinationMesh = new THREE.Mesh(geo, mat);
+            hallucinationMesh.position.set(0, 3, 0);
+            hallucinationMesh.visible = false;
+
+            hallucinationMesh.userData.originalPositions = geo.attributes.position.clone();
+
+            scene.add(hallucinationMesh);
+        }
+
+        function createMegaPizza() {
+            const group = new THREE.Group();
+
+            const crustGeo = new THREE.CylinderGeometry(8, 8, 0.5, 64);
+            const crustMat = new THREE.MeshStandardMaterial({
+                color: 0xcd853f,
+                roughness: 0.9,
+            });
+            const crust = new THREE.Mesh(crustGeo, crustMat);
+            group.add(crust);
+
+            const cheeseGeo = new THREE.CylinderGeometry(7.5, 7.5, 0.6, 64);
+            const cheeseMat = new THREE.MeshStandardMaterial({
+                color: 0xffd700,
+                transparent: true,
+                opacity: 0.85,
+                roughness: 0.2,
+                metalness: 0.1
+            });
+            const cheese = new THREE.Mesh(cheeseGeo, cheeseMat);
+            cheese.position.y = 0.05;
+            group.add(cheese);
+
+            const pepperoniMat = new THREE.MeshStandardMaterial({ color: 0xb22222, roughness: 0.7 });
+            const toppingGroup = new THREE.Group();
+
+            for (let i = 0; i < 25; i++) {
+                const pepGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16);
+                const pep = new THREE.Mesh(pepGeo, pepperoniMat);
+
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 6.5;
+
+                pep.position.set(Math.cos(angle) * radius, 0.35, Math.sin(angle) * radius);
+                pep.rotation.x = (Math.random() - 0.5) * 0.1;
+                pep.rotation.z = (Math.random() - 0.5) * 0.1;
+
+                toppingGroup.add(pep);
+            }
+            group.add(toppingGroup);
+
+            const steamMat = new THREE.MeshStandardMaterial({
+                color: 0xfffbeb,
+                transparent: true,
+                opacity: 0.15,
+                roughness: 1.0,
+                depthWrite: false
+            });
+            const steamGroup = new THREE.Group();
+
+            for (let i = 0; i < 40; i++) {
+                const steamGeo = new THREE.SphereGeometry(1.0 + Math.random() * 1.0, 16, 16);
+                const steam = new THREE.Mesh(steamGeo, steamMat);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 7;
+                steam.position.set(Math.cos(angle) * radius, Math.random() * 3, Math.sin(angle) * radius);
+                steamGroup.add(steam);
+            }
+            group.add(steamGroup);
+
+            group.position.set(0, 1, 0);
+            group.rotation.x = Math.PI / 8;
+            group.visible = false;
+
+            group.userData = { steamGroup };
+
+            megaPizzaMesh = group;
+            scene.add(megaPizzaMesh);
+        }
+
+        function spawnJobObjectsCluster(amount, type) {
+            jobObjectsGroup.forEach(s => scene.remove(s));
+            jobObjectsGroup = [];
+            currentSpawnedType = type;
+
+            for (let i = 0; i < amount; i++) {
+                const item = createJobItemMesh(type);
+
+                const angle = (i / amount) * Math.PI * 12;
+                const radius = 5 + (i / amount) * 16;
+
+                item.position.x = Math.cos(angle) * radius;
+                item.position.z = Math.sin(angle) * radius;
+                item.position.y = (Math.random() - 0.5) * 10;
+
+                item.rotation.y = Math.random() * Math.PI;
+                item.rotation.x = Math.random() * 0.5;
+
+                scene.add(item);
+                jobObjectsGroup.push(item);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Benchmark Lifecycle ---
+        function startBenchmark() {
+            const presetSelect = document.getElementById('setting-preset');
+            const preset = presetSelect.value;
+
+            if (preset === 'light') presetMultiplier = 0.5;
+            else if (preset === 'normal') presetMultiplier = 1.0;
+            else if (preset === 'heavy') presetMultiplier = 2.0;
+            else if (preset === 'extreme') presetMultiplier = 4.0;
+
+            isBenchmarking = true;
+            benchStartTime = performance.now();
+            fpsHistory = [];
+            minFps = 999;
+            maxFps = 0;
+            totalWages = 0;
+            totalRenderedFrames = 0;
+            totalShifts = 0;
+            phaseWages = [0, 0, 0, 0, 0, 0, 0];
+
+            lastEarnedFiveThousand = 0;
+            currentAaIndex = 0;
+            document.getElementById('aa-box1').classList.add('hidden')
+            const aaBox = document.getElementById('aa-box');
+            if (aaBox) aaBox.classList.remove('hidden');
+            const aaDisplay = document.getElementById('aa-display');
+            if (aaDisplay) aaDisplay.textContent = asciiArts['pc'][0];
+
+            const detailsList = document.getElementById('phase-details-list');
+            const toggleIcon = document.getElementById('icon-toggle-details');
+            const toggleText = document.getElementById('text-toggle-details');
+            if (detailsList) detailsList.classList.add('hidden');
+            if (toggleIcon) {
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            }
+            if (toggleText) toggleText.textContent = '詳細データを見る';
+
+            document.getElementById('benchmark-hud').classList.remove('hidden');
+            document.getElementById('gpu-info-box').classList.add('hidden');
+            document.getElementById('result-modal').classList.add('hidden');
+            document.getElementById('btn-start-benchmark').disabled = true;
+            document.getElementById('btn-start-benchmark').classList.add('opacity-50', 'cursor-not-allowed');
+
+            showToast('ベンチマーク開始！');
+        }
+
+        function endBenchmark() {
+            try {
+                isBenchmarking = false;
+
+                jobObjectsGroup.forEach(s => scene.remove(s));
+                jobObjectsGroup = [];
+                if (guardParticles) guardParticles.visible = false;
+                if (hallucinationMesh) hallucinationMesh.visible = false;
+                if (megaPizzaMesh) megaPizzaMesh.visible = false;
+                dynamicLights.forEach(l => l.intensity = 0);
+
+                const aaBox = document.getElementById('aa-box');
+                if (aaBox) aaBox.classList.add('hidden');
+
+                const hud = document.getElementById('benchmark-hud');
+                if (hud) hud.classList.add('hidden');
+
+                const gpuBox = document.getElementById('gpu-info-box');
+                if (gpuBox) gpuBox.classList.remove('hidden');
+
+                const btnStart = document.getElementById('btn-start-benchmark');
+                if (btnStart) {
+                    btnStart.disabled = false;
+                    btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+
+                const avgFps = fpsHistory.length > 0 ? Math.round(fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length) : 60;
+                const finalMinFps = minFps === 999 ? avgFps : minFps;
+                const finalWages = Math.round(totalWages || 0);
+                const gpuScore = Math.round((finalWages / 100) * (avgFps / 30) + (finalMinFps * 60));
+
+                const moneyCount = document.getElementById('result-money-count');
+                if (moneyCount) moneyCount.textContent = `${finalWages.toLocaleString()}`;
+
+                const avgFpsEl = document.getElementById('result-avg-fps');
+                if (avgFpsEl) avgFpsEl.textContent = avgFps;
+
+                const minFpsEl = document.getElementById('result-min-fps');
+                if (minFpsEl) minFpsEl.textContent = finalMinFps;
+
+                const maxFpsEl = document.getElementById('result-max-fps');
+                if (maxFpsEl) maxFpsEl.textContent = maxFps === 0 ? avgFps : maxFps;
+
+                const totalFramesEl = document.getElementById('result-total-frames');
+                if (totalFramesEl) totalFramesEl.textContent = totalRenderedFrames.toLocaleString();
+
+                const resolutionEl = document.getElementById('result-resolution');
+                if (resolutionEl) {
+                    const pr = Math.min(window.devicePixelRatio, 2);
+                    const w = Math.round(window.innerWidth * pr);
+                    const h = Math.round(window.innerHeight * pr);
+                    resolutionEl.textContent = `${w} x ${h}`;
+                }
+
+                for (let i = 0; i < 7; i++) {
+                    const wageEl = document.getElementById(`wage-phase-${i + 1}`);
+                    if (wageEl) {
+                        wageEl.textContent = `${Math.round(phaseWages[i]).toLocaleString()}`;
+                    }
+                }
+
+                const presetSelect = document.getElementById('setting-preset');
+                const preset = presetSelect ? presetSelect.value : 'normal';
+                const rank = calculateRank(gpuScore, avgFps, preset);
+
+                const presetBadge = document.getElementById('result-executed-preset-badge');
+                if (presetBadge) presetBadge.textContent = `設定: ${getPresetName(preset)}`;
+
+                document.getElementById('result-gpu-name').textContent = document.getElementById('gpu-name-display').textContent.trim();
+                document.getElementById('result-screen-resolution').textContent = document.getElementById('result-resolution').textContent.trim();
+                const osInfo = getOSInfo()
+                document.getElementById('result-os').textContent = osInfo;
+                osIconEl = document.getElementById('os-icon');
+                if (/Windows/.test(osInfo)) {
+                    osIconEl.classList.add("fa-windows");
+                } else if (/Android/.test(osInfo)) {
+                    osIconEl.classList.add("fa-android");
+                } else if (/FreeBSD/.test(osInfo)) {
+                    osIconEl.classList.add("fa-freebsd");
+                } else if (/Linux/.test(osInfo)) {
+                    osIconEl.classList.add("fa-linux");
+                } else if (/iOS|iPadOS|macOS|/.test(osInfo)) {
+                    osIconEl.classList.add("fa-apple");
+                }
+
+                const rankTitle = document.getElementById('result-rank-title');
+                if (rankTitle) rankTitle.textContent = rank.title;
+                const rankDesc = document.getElementById('result-rank-desc');
+                if (rankDesc) rankDesc.textContent = rank.desc;
+
+                const modalPreset = document.getElementById('setting-preset-modal');
+                const footerPreset = document.getElementById('setting-preset');
+                if (modalPreset && footerPreset) {
+                    modalPreset.value = footerPreset.value;
+                }
+
+                const modal = document.getElementById('result-modal');
+                if (modal) modal.classList.remove('hidden');
+
+                // Twitter ボタン
+                const text = getResult();
+                button = document.getElementById('twitter-post');
+                url = 'https://x.com/intent/tweet?text=' + encodeURIComponent(text);
+                button.setAttribute('href', url);
+
+            } catch (error) {
+                console.error("ベンチマーク終了処理中にエラーが発生しました:", error);
+                isBenchmarking = false;
+                document.getElementById('benchmark-hud')?.classList.add('hidden');
+                document.getElementById('result-modal')?.classList.remove('hidden');
+                document.getElementById('btn-start-benchmark')?.classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('btn-start-benchmark').disabled = false;
+            }
+        }
+
+        function calculateRank(score, avgFps, preset) {
+            let difficultyScale = 1.0;
+            if (preset === 'light') difficultyScale = 0.5;
+            else if (preset === 'normal') difficultyScale = 1.0;
+            else if (preset === 'heavy') difficultyScale = 2.0;
+            else if (preset === 'extreme') difficultyScale = 4.0;
+
+            const rank1 = 390000 * difficultyScale;
+            const rank2 = 190000 * difficultyScale;
+            const rank3 = 85000 * difficultyScale;
+            const rank4 = 30000 * difficultyScale;
+
+            const presetName = getPresetName(preset);
+
+            if (score > rank1) {
+                return {
+                    title: "キチガイ",
+                    desc: "規格外のモンスター(;´Д`)"
+                };
+            } else if (score > rank2) {
+                return {
+                    title: "ハイエンド",
+                    desc: "有能ヽ(´ー｀)ノ"
+                };
+            } else if (score > rank3) {
+                return {
+                    title: "普通",
+                    desc: "普通(´ー｀)"
+                };
+            } else if (score > rank4) {
+                return {
+                    title: "コスパモデル",
+                    desc: "軽めの処理ならいけるかも(;´Д`)"
+                };
+            } else {
+                return {
+                    title: "ポンコツ",
+                    desc: "向いてない(;´Д`)"
+                };
+            }
+        }
+
+        function getPresetName(preset) {
+            if (preset === 'light') return '軽量';
+            if (preset === 'normal') return '標準';
+            if (preset === 'heavy') return '激重';
+            if (preset === 'extreme') return '過労死ブラック';
+            return '(;´Д`)';
+        }
+
+        // --- Render Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            frameCount++;
+            if (time - lastTime >= 500) {
+                fps = Math.round((frameCount * 1000) / (time - lastTime));
+                frameCount = 0;
+                lastTime = time;
+
+                if (isBenchmarking) {
+                    fpsHistory.push(fps);
+                    if (fps < minFps) minFps = fps;
+                    if (fps > maxFps) maxFps = fps;
+                }
+            }
+
+            if (isBenchmarking) {
+                totalRenderedFrames++;
+                const elapsed = (time - benchStartTime) / 1000;
+                const remaining = Math.max(0, Math.ceil(BENCH_DURATION - elapsed));
+                const progress = Math.min(100, (elapsed / BENCH_DURATION) * 100);
+
+                document.getElementById('hud-fps').textContent = fps;
+                document.getElementById('hud-min-fps').textContent = minFps === 999 ? fps : minFps;
+                document.getElementById('hud-timer').textContent = `${remaining}s`;
+                document.getElementById('hud-progress-bar').style.width = `${progress}%`;
+
+                const phaseBadge = document.getElementById('phase-badge');
+                let targetObjectsCount = 50;
+                let targetObjectType = 'pc';
+                let currentPhaseIndex = 0;
+
+                guardParticles.visible = false;
+                hallucinationMesh.visible = false;
+                megaPizzaMesh.visible = false;
+
+                if (elapsed < 5) {
+                    // Phase 1
+                    currentPhaseIndex = 0;
+                    phaseBadge.innerHTML = "フェーズ1: 基本ドローコール＆ポリゴン描画";
+                    targetObjectsCount = Math.floor(150 * presetMultiplier);
+                    targetObjectType = 'pc';
+                } else if (elapsed < 10) {
+                    // Phase 2
+                    currentPhaseIndex = 1;
+                    phaseBadge.innerHTML = "フェーズ2: 動的ライティング＆金属マテリアル負荷";
+                    targetObjectsCount = Math.floor(300 * presetMultiplier);
+                    targetObjectType = 'gear';
+
+                    dynamicLights.forEach((light, i) => {
+                        light.intensity = 2.5;
+                        const pulse = Math.abs(Math.sin(time * 0.005 + i * 0.5));
+                        light.color.setHSL(0.1, 1, 0.3 + pulse * 0.4);
+                        light.position.x = Math.sin(time * 0.003 + i) * 15;
+                        light.position.z = Math.cos(time * 0.003 + i) * 15;
+                        light.position.y = 4 + Math.sin(time * 0.002) * 2;
+                    });
+                } else if (elapsed < 15) {
+                    // Phase 3
+                    currentPhaseIndex = 2;
+                    phaseBadge.innerHTML = "フェーズ3: 5万パーティクル大量描画処理";
+                    targetObjectsCount = Math.floor(500 * presetMultiplier);
+                    targetObjectType = 'baton';
+                    guardParticles.visible = true;
+                    guardParticles.rotation.y += 0.03;
+                } else if (elapsed < 20) {
+                    // Phase 4
+                    currentPhaseIndex = 3;
+                    phaseBadge.innerHTML = "フェーズ4: 頂点シェーダーでのリアルタイム変形";
+                    targetObjectsCount = Math.floor(800 * presetMultiplier);
+                    targetObjectType = 'pill';
+                    if (hallucinationMesh && hallucinationMesh.geometry) {
+                        hallucinationMesh.visible = true;
+                        hallucinationMesh.rotation.x += 0.03;
+                        hallucinationMesh.rotation.y += 0.05;
+                        hallucinationMesh.rotation.z += 0.02;
+
+                        const pos = hallucinationMesh.geometry.attributes.position;
+                        const origPos = hallucinationMesh.userData.originalPositions;
+                        for (let i = 0; i < pos.count; i++) {
+                            const vx = origPos.getX(i);
+                            const vy = origPos.getY(i);
+                            const vz = origPos.getZ(i);
+                            pos.setY(i, vy + Math.sin(time * 0.005 + vx * 2) * 0.8 + Math.cos(time * 0.003 + vz) * 0.5);
+                            pos.setX(i, vx + Math.cos(time * 0.004 + vy) * 0.5);
+                        }
+                        pos.needsUpdate = true;
+                    }
+                } else if (elapsed < 25) {
+                    // Phase 5
+                    currentPhaseIndex = 4;
+                    phaseBadge.innerHTML = "フェーズ5: 半透明アルファブレンド＆オーバードロー";
+                    targetObjectsCount = Math.floor(1200 * presetMultiplier);
+                    targetObjectType = 'pizza_slice';
+
+                    if (megaPizzaMesh && megaPizzaMesh.userData.steamGroup) {
+                        megaPizzaMesh.visible = true;
+                        megaPizzaMesh.rotation.y += 0.02;
+                        megaPizzaMesh.position.y = 1 + Math.sin(time * 0.003) * 0.2;
+
+                        const steams = megaPizzaMesh.userData.steamGroup.children;
+                        for (let i = 0; i < steams.length; i++) {
+                            steams[i].position.y += 0.03;
+                            steams[i].scale.setScalar(1.0 + Math.sin(time * 0.005 + i) * 0.2);
+                            if (steams[i].position.y > 6) {
+                                steams[i].position.y = 0;
+                            }
+                        }
+                    }
+                } else if (elapsed < 30) {
+                    // Phase 6: Underground Crystal Mining
+                    currentPhaseIndex = 5;
+                    phaseBadge.innerText = "フェーズ6: 物理ベース透過・屈折シェーダー";
+                    targetObjectsCount = Math.floor(600 * presetMultiplier);
+                    targetObjectType = 'crystal';
+                } else {
+                    // Phase 7
+                    currentPhaseIndex = 6;
+                    phaseBadge.innerText = "フェーズ7: 複合超高負荷オブジェクト";
+                    targetObjectsCount = Math.floor(1500 * presetMultiplier);
+                    targetObjectType = 'penlight';
+                }
+
+                if (jobObjectsGroup.length !== targetObjectsCount || currentSpawnedType !== targetObjectType) {
+                    spawnJobObjectsCluster(targetObjectsCount, targetObjectType);
+
+                    currentAaIndex = 0;
+                    lastEarnedFiveThousand = Math.floor(totalWages / 5000);
+                }
+
+                const wageEarnedThisFrame = (fps / 60) * (jobObjectsGroup.length * 15) * 0.8;
+                totalWages += wageEarnedThisFrame;
+                phaseWages[currentPhaseIndex] += wageEarnedThisFrame;
+                totalShifts = Math.floor(elapsed * 1.8);
+
+                const currentTenThousand = Math.floor(totalWages / 5000);
+                if (currentTenThousand > lastEarnedFiveThousand) {
+                    currentAaIndex += (currentTenThousand - lastEarnedFiveThousand);
+                    lastEarnedFiveThousand = currentTenThousand;
+                }
+
+                const aaArray = asciiArts[targetObjectType];
+                if (aaArray) {
+                    const frame = currentAaIndex % aaArray.length;
+                    const aaDisplay = document.getElementById('aa-display');
+                    if (aaDisplay) aaDisplay.textContent = aaArray[frame];
+                }
+
+                document.getElementById('hud-money-count').textContent = `${Math.round(totalWages).toLocaleString()}`;
+                document.getElementById('hud-shift-count').textContent = `(ループ数: ${totalShifts} 回)`;
+                document.getElementById('hud-job-objects').textContent = jobObjectsGroup.length;
+
+                if (elapsed >= BENCH_DURATION) {
+                    endBenchmark();
+                    return;
+                }
+            } else {
+                if (jobObjectsGroup.length > 0) {
+                    jobObjectsGroup.forEach(s => scene.remove(s));
+                    jobObjectsGroup = [];
+                }
+            }
+
+            // Idle Animations
+            const clock = time * 0.001;
+
+            if (isBenchmarking) {
+                jobObjectsGroup.forEach((item, idx) => {
+                    item.rotation.y += 0.02 + (idx % 3) * 0.005;
+                    item.position.y += Math.sin(clock * 3 + idx) * 0.02;
+
+                    if (currentSpawnedType === 'penlight') {
+                        item.rotation.x += 0.15;
+                        item.rotation.z += 0.1;
+                    }
+                });
+
+                camera.position.x = Math.sin(clock * 0.8) * 22;
+                camera.position.z = Math.cos(clock * 0.8) * 22;
+                camera.lookAt(0, 1, 0);
+            } else {
+                camera.position.x = Math.sin(clock * 0.2) * 28;
+                camera.position.z = Math.cos(clock * 0.2) * 28;
+                camera.lookAt(0, 2, 0);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Helper Utilities ---
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        function getResult() {
+            const getText = (id, fallback = '---') => {
+                const el = document.getElementById(id);
+                return el ? el.textContent.trim() : fallback;
+            };
+
+            const gpuName = getText('gpu-name-display', '不明なプロセッサ');
+            const score = getText('result-money-count', '0');
+            const resolution = getText('result-resolution', '不明');
+            const rank = getText('result-rank-title', '未測定');
+            const osInfo = getOSInfo();
+
+            const presetSelect = document.getElementById('setting-preset');
+            const preset = presetSelect ? presetSelect.value : 'normal';
+            const presetName = getPresetName(preset);
+
+            const text = `GPUベンチマーク計測結果
+
+OS: ${osInfo}
+プロセッサ: ${gpuName}
+解像度: ${resolution}
+負荷設定: ${presetName}
+
+スコア: ${score}
+称号: ${rank}
+
+#ぁMark #GPUベンチマーク
+https://kuhaku.github.io/amark/`;
+
+            return text;
+        }
+
+        async function copyResultToClipboard() {
+            const text = getResult();
+
+            try {
+                // セキュアコンテキスト(HTTPS)かつAPIが存在する場合
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    // APIが使えない環境（HTTPやiframe内の一部など）でのフォールバック
+                    fallbackCopyTextToClipboard(text);
+                }
+            } catch (err) {
+                console.warn('Clipboard API failed, trying fallback...', err);
+                fallbackCopyTextToClipboard(text);
+            }
+
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // 画面のスクロールを防ぐため、画面外の固定位置に配置
+            textArea.style.top = "-999999px";
+            textArea.style.left = "-999999px";
+            textArea.style.position = "fixed";
+            textArea.setAttribute('readonly', ''); // iOSでの仮想キーボード表示を防ぐ
+
+            document.body.appendChild(textArea);
+
+            const isIOS = navigator.userAgent.match(/ipad|iphone/i);
+            const isMac = navigator.userAgent.match(/macintosh/i);
+
+            // iOSおよびiPadOS向けの特別処理 (Macのタッチデバイス判定含む)
+            if (isIOS || (isMac && navigator.maxTouchPoints && navigator.maxTouchPoints > 2)) {
+                const range = document.createRange();
+                range.selectNodeContents(textArea);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                textArea.setSelectionRange(0, 999999);
+            } else {
+                // PCやAndroid向けの標準的な選択処理
+                textArea.focus();
+                textArea.select();
+            }
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    showToast('コピーに失敗しました。手動でコピーしてください。');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showToast('コピーに失敗しました。手動でコピーしてください。');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        // --- Event Listeners & Init ---
+        window.addEventListener('load', () => {
+            document.getElementById('aa-display1').innerText = "(;´Д`)\n(ヽへへ"
+
+            updateGPUUI();
+            init3D();
+
+            requestAnimationFrame(animate);
+
+            const footerPreset = document.getElementById('setting-preset');
+            const modalPreset = document.getElementById('setting-preset-modal');
+
+            footerPreset.addEventListener('change', () => {
+                modalPreset.value = footerPreset.value;
+            });
+            modalPreset.addEventListener('change', () => {
+                footerPreset.value = modalPreset.value;
+            });
+
+            document.getElementById('btn-start-benchmark').addEventListener('click', startBenchmark);
+            document.getElementById('btn-retry').addEventListener('click', () => {
+                document.getElementById('result-modal').classList.add('hidden');
+                startBenchmark();
+            });
+            document.getElementById('btn-copy-result').addEventListener('click', copyResultToClipboard);
+
+            document.getElementById('btn-show-gpu-spec').addEventListener('click', () => {
+                document.getElementById('gpu-spec-modal').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-gpu-spec').addEventListener('click', () => {
+                document.getElementById('gpu-spec-modal').classList.add('hidden');
+            });
+
+            document.getElementById('btn-toggle-details').addEventListener('click', () => {
+                const list = document.getElementById('phase-details-list');
+                const icon = document.getElementById('icon-toggle-details');
+                const text = document.getElementById('text-toggle-details');
+
+                if (list.classList.contains('hidden')) {
+                    list.classList.remove('hidden');
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                    text.textContent = '詳細データを閉じる';
+                } else {
+                    list.classList.add('hidden');
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                    text.textContent = 'スコア内訳・詳細データを見る';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
