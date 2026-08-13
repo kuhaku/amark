@@ -92,7 +92,7 @@
                             class="text-lg md:text-xl font-black tracking-wider font-title text-amber-300 glow-chalk-yellow leading-tight">
                             <a href="./index.html">ぁMark</a>
                             <span
-                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v2.1.0</span>
+                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v2.1.1</span>
                         </h1>
                         <p class="text-[11px] text-emerald-200/80 mt-0.5">グラフィック性能を計測するあやしいベンチマーク</p>
                     </div>
@@ -132,6 +132,7 @@
 スコア測定基準をFPSベースに変更 (過去ver.とは互換性なし)
 計測項目の追加
 称号を4段階から7段階に変更
+途中で強制終了する場合はChromeで試すか負荷を下げてください
 
 (;´Д`)</pre>
                 </div>
@@ -866,7 +867,7 @@
                 return true;
             } catch (e) {
                 console.error("Failed to load ESPCN model", e);
-                showToast("AIモデルの準備に失敗しました。推論スコアは加算されません。");
+                showToast("AIモデルの準備に失敗しました。");
                 return false;
             }
         }
@@ -2538,7 +2539,7 @@
                     // Phase 11: ドリームキャスト
                     currentPhaseIndex = 10;
                     phaseBadge.innerText = "フェーズ11: AI 超解像推論 (アップスケーリング)";
-                    targetObjectsCount = Math.floor(250 * presetMultiplier);
+                    targetObjectsCount = Math.floor(150 * presetMultiplier);
                     targetObjectType = 'dreamcast';
 
                     if (!isInferencing) runInference();
