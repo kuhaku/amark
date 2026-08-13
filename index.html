@@ -92,7 +92,7 @@
                             class="text-lg md:text-xl font-black tracking-wider font-title text-amber-300 glow-chalk-yellow leading-tight">
                             <a href="./index.html">ぁMark</a>
                             <span
-                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v2.0.0</span>
+                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v2.1.0</span>
                         </h1>
                         <p class="text-[11px] text-emerald-200/80 mt-0.5">グラフィック性能を計測するあやしいベンチマーク</p>
                     </div>
@@ -855,6 +855,12 @@
                     espcnInputArray[i] = Math.random();
                 }
                 espcnInputTensor = new ort.Tensor('float32', espcnInputArray, [1, 1, espcnInputSize, espcnInputSize]);
+
+                // 初回推論(ウォームアップ)を実行
+                // ベンチマーク中にシェーダーコンパイルや最適化が走ってフリーズするのを防ぐ
+                const feeds = {};
+                feeds[espcnSession.inputNames[0]] = espcnInputTensor;
+                await espcnSession.run(feeds);
 
                 console.log("ESPCN AI Model loaded successfully!");
                 return true;
