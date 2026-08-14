@@ -1,0 +1,3015 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ぁMark - グラフィック性能ベンチマーク</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ONNX Runtime Web for AI Inference -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+
+    <!-- Correct browser Import Map for Three.js WebGPU + TSL + TSL addons -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.webgpu.js",
+            "three/webgpu": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.webgpu.js",
+            "three/tsl": "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.tsl.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.185.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=BIZ+UDGothic&family=M+PLUS+Rounded+1c&family=Space+Mono:wght@700;900&display=swap');
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #004040;
+            /* 黒板色 */
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        pre {
+            font-family: 'MS Gothic', 'BIZ UDGothic', 'Space Mono', ui-monospace, monospace;
+        }
+
+        .font-title {
+            font-family: 'BIZ UDGothic', cursive;
+        }
+
+        /* Custom Scrollbar (Chalk & Wood Style) */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #002828;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #f59e0b;
+            border-radius: 4px;
+        }
+
+        /* Chalkboard Card Style */
+        .chalk-card {
+            background: rgba(0, 32, 32, 0.9);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(245, 158, 11, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6), inset 0 0 12px rgba(255, 255, 255, 0.05);
+        }
+
+        /* Yellow Chalk Glow */
+        .glow-chalk-yellow {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.9), 0 0 20px rgba(245, 158, 11, 0.5);
+        }
+
+        /* Green Chalk Glow */
+        .glow-chalk-green {
+            text-shadow: 0 0 10px rgba(52, 211, 153, 0.9), 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        /* Cyan Chalk Glow */
+        .glow-chalk-cyan {
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.9), 0 0 20px rgba(14, 165, 233, 0.5);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between relative text-white">
+
+    <!-- Canvas Container -->
+    <div id="canvas-container" class="fixed inset-0 z-0"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="relative z-10 flex flex-col min-h-screen justify-between p-2 sm:p-2 md:p-3 pointer-events-none">
+
+        <!-- Top Area Wrapper -->
+        <div class="w-full max-w-xl mx-auto space-y-2">
+            <!-- Top Header Info Bar (Vertical Layout) -->
+            <header class="flex flex-col gap-3 pointer-events-auto relative z-[60] w-full">
+                <!-- Logo & Title -->
+                <div
+                    class="flex items-center justify-center gap-3 bg-emerald-950/90 border border-amber-500/50 px-4 py-2 md:py-3 rounded-2xl shadow-lg backdrop-blur-md">
+                    <div class="text-center">
+                        <h1
+                            class="text-lg md:text-xl font-black tracking-wider font-title text-amber-300 glow-chalk-yellow leading-tight">
+                            <a href="./index.html">ぁMark</a>
+                            <span
+                                class="text-[11px] px-1.5 text-white font-sans tracking-normal font-bold inline-block">v3.0.0-dev0</span>
+                        </h1>
+                        <p class="text-[11px] text-emerald-200/80 mt-0.5">グラフィック性能を計測するあやしいベンチマーク</p>
+                    </div>
+                </div>
+
+                <!-- GPU Detected Info Box -->
+                <div id="gpu-info-box"
+                    class="chalk-card px-4 py-3 rounded-2xl flex flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 overflow-hidden min-w-0">
+                        <div id="gpu-icon-container" class="text-2xl text-cyan-300 shrink-0">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <div class="overflow-hidden min-w-0">
+                            <div
+                                class="text-[10px] text-emerald-200/70 font-bold uppercase tracking-wider flex items-center gap-2">
+                                <span id="gpu-vendor-badge"
+                                    class="px-1 py-0.5 text-[9px] bg-emerald-900 text-emerald-100 rounded border border-emerald-700 whitespace-nowrap">AUTO</span>
+                            </div>
+                            <div id="gpu-name-display" class="text-sm font-black text-amber-200 truncate">
+                                GPUを解析中...
+                            </div>
+                        </div>
+                    </div>
+                    <button id="btn-show-gpu-spec"
+                        class="shrink-0 px-3 py-1.5 bg-emerald-900/80 hover:bg-emerald-800 text-sm text-amber-200 font-bold rounded-lg border border-amber-500/50 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-info text-amber-400"></i>
+                        <span>詳細</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- ASCII Art Box Wrapper (Independent) -->
+            <div id="notice-box" class="w-full z-20 flex justify-center">
+                <!-- ASCII Art Box -->
+                <div class="chalk-card p-3 rounded-2xl border-2 border-emerald-500/50 shadow-2xl min-w-[160px]">
+                    <pre id="change-log" class="text-amber-100 text-xs">2026/08/15
+描画エンジンをWebGPUにしたバージョン (実験段階)
+
+(;´Д`)</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center Dynamic Benchmark Stats -->
+        <div id="benchmark-hud" class="hidden my-auto self-center text-center mt-2 mb-2">
+            <div
+                class="bg-emerald-950/90 border-2 border-amber-400/80 p-4 rounded-3xl backdrop-blur-md shadow-2xl inline-block max-w-lg w-full">
+                <!-- Status Badge -->
+                <div class="inline-block px-2 bg-amber-500/20 border border-amber-400/60 rounded-xl text-amber-200 font-bold text-xs mb-3 animate-pulse leading-snug"
+                    id="phase-badge">
+                    フェーズ1: 基本ドローコール＆ポリゴン描画
+                </div>
+
+                <!-- ASCII Art Box -->
+                <div id="aa-box"
+                    class="chalk-card p-1 rounded-2xl border-2 border-emerald-500/50 shadow-2xl min-w-[160px] flex justify-center">
+                    <pre id="aa-display" class="text-amber-100 text-xs text-left"></pre>
+                </div>
+                <!-- Main Counter -->
+                <div class="space-y-1">
+                    <div class="text-xs text-emerald-200/80 font-bold">現在のスコア</div>
+                    <div class="text-4xl md:text-6xl font-black text-emerald-300 glow-chalk-green font-mono tracking-tight"
+                        id="hud-score-count">0</div>
+                    <div class="text-xs text-amber-300 font-bold" id="hud-shift-count">(ループ数: 0 回)</div>
+                </div>
+
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-4 gap-2 mt-6 pt-4 border-t border-emerald-800/80 text-center">
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">FPS</div>
+                        <div id="hud-fps" class="text-lg sm:text-xl font-bold text-cyan-300 font-mono leading-tight">00
+                        </div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">最小 FPS</div>
+                        <div id="hud-min-fps"
+                            class="text-lg sm:text-xl font-bold text-rose-300 font-mono leading-tight">00</div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">画面アイテム</div>
+                        <div id="hud-job-objects"
+                            class="text-lg sm:text-xl font-bold text-amber-300 font-mono leading-tight">0</div>
+                    </div>
+                    <div
+                        class="bg-emerald-900/60 p-2 rounded-xl border border-emerald-700/50 flex flex-col justify-center">
+                        <div class="text-[10px] text-emerald-300/80 leading-tight">残り時間</div>
+                        <div id="hud-timer"
+                            class="text-lg sm:text-xl font-bold text-emerald-300 font-mono leading-tight">60s</div>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="mt-4 flex justify-center items-center gap-3">
+                    <div class="w-full bg-emerald-950 rounded-full h-3 overflow-hidden border border-emerald-700">
+                        <div id="hud-progress-bar"
+                            class="bg-gradient-to-r from-amber-400 via-emerald-400 to-cyan-400 h-full w-0% transition-all duration-200">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Modal Dialog -->
+        <div id="result-modal"
+            class="hidden pointer-events-auto fixed inset-0 bg-emerald-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-2 pt-24 pb-4">
+            <div
+                class="chalk-card max-w-xl w-full p-2 md:p-3 rounded-3xl border-2 border-amber-400 shadow-2xl text-center max-h-[calc(100vh-7rem)] overflow-y-auto">
+
+                <!-- Main Score Highlight -->
+                <div
+                    class="bg-emerald-950/90 p-4 md:p-5 rounded-2xl border border-emerald-700/80 relative overflow-hidden">
+                    <div class="flex flex-col items-center justify-center">
+                        <span id="result-executed-preset-badge"
+                            class="px-2 py-0.5 mb-2 bg-emerald-800 text-amber-200 text-[11px] rounded border border-emerald-600 font-bold">---</span>
+                        <span
+                            class="text-xs text-emerald-200/80 font-bold uppercase tracking-widest leading-tight">スコア</span>
+                    </div>
+                    <div class="text-4xl md:text-5xl font-black text-emerald-300 glow-chalk-green font-mono tracking-tight mt-1"
+                        id="result-score-count">0</div>
+
+                    <div class="pt-3 mt-2 grid grid-cols-3 gap-3 border-t border-emerald-800">
+                        <div>
+                            <span class="text-[10px] text-emerald-300/70 block">平均 FPS</span>
+                            <span class="text-xl md:text-2xl font-black text-cyan-300 font-mono"
+                                id="result-avg-fps">0</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-emerald-300/70 block">最低 1% FPS</span>
+                            <span class="text-xl md:text-2xl font-black text-rose-300 font-mono"
+                                id="result-min-fps">0</span>
+                        </div>
+                        <div class="text-left">
+                            <span class="block text-[12px]">
+                                <i id="os-icon" class="fa-brands text-emerald-300/70"></i>
+                                <span id="result-os" class="text-cyan-300 font-black font-mono">OS名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-microchip text-emerald-300/70"></i>
+                                <span id="result-gpu-name" class="text-cyan-300 font-black font-mono">GPU名</span></span>
+                            <span class="block text-[12px]">
+                                <i class="fa-solid fa-display text-emerald-300/70"></i>
+                                <span id="result-screen-resolution"
+                                    class="text-cyan-300 font-black font-mono">640x480</span></span>
+                        </div>
+                    </div>
+
+                    <!-- 詳細表示ボタンと内訳リスト -->
+                    <div class="pt-3 border-t border-emerald-800/50 mt-3">
+                        <button id="btn-toggle-details"
+                            class="w-full py-1.5 text-xs text-emerald-300 bg-emerald-900/40 hover:bg-emerald-800/60 rounded-lg border border-emerald-700/50 transition flex items-center justify-center gap-2">
+                            <i id="icon-toggle-details" class="fa-solid fa-chevron-down"></i>
+                            <span id="text-toggle-details">詳細データを見る</span>
+                        </button>
+
+                        <div id="phase-details-list"
+                            class="hidden mt-3 space-y-2 bg-emerald-900/30 p-3 rounded-lg border border-emerald-800/50 text-left">
+                            <div class="border-b border-emerald-800/50 pb-2 mb-2 space-y-1">
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">最高 FPS</span>
+                                    <span class="font-bold text-cyan-300 font-mono" id="result-max-fps">0</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">総処理フレーム数</span>
+                                    <span class="font-bold text-amber-300 font-mono" id="result-total-frames">0</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px]">
+                                    <span class="text-emerald-200">実行解像度 (DPR反映)</span>
+                                    <span class="font-bold text-amber-300 font-mono" id="result-resolution">---</span>
+                                </div>
+                            </div>
+                            <div class="text-[10px] text-emerald-400 font-bold mb-1">フェーズ別内訳</div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">1: 基本ドローコール＆ポリゴン描画</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-1">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">2: 動的ライティング＆金属マテリアル描画</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-2">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">3: 大量パーティクル</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-3">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">4: 頂点変形シェーダー</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-4">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">5: 半透明ブレンド＆オーバードロー</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-5">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">6: ボリュメトリックイルミネーション</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-6">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">7: 物理ベース透過・屈折シェーダー</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-7">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">8: 疑似テッセレーション (頂点変位)</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-8">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">9: 剛体物理シミュレーション</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-9">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">10: 高度なポストプロセス (SSR/SSAO/Bloom/Lens)</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-10">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">11: AI 超解像 (アップスケーリング)</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-11">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">12: 総合テスト</span>
+                                <span class="font-bold text-amber-300 font-mono" id="score-phase-12">0</span>
+                            </div>
+                            <div class="flex justify-between items-center text-[11px]">
+                                <span class="text-emerald-200">FPS安定性ボーナス</span>
+                                <span class="font-bold text-amber-300 font-mono" id="result-fps-bonus">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rank Title Box -->
+                <div
+                    class="p-3 md:p-4 bg-gradient-to-r from-amber-950/60 via-emerald-900/60 to-amber-950/60 border border-amber-400/50 rounded-2xl mt-2">
+                    <div id="result-rank-title"
+                        class="text-xl md:text-2xl font-bold text-amber-300 mt-1 glow-chalk-yellow tracking-wide">
+                        ---
+                    </div>
+                    <p id="result-rank-desc" class="text-xs text-emerald-100/90 mt-2 leading-relaxed">
+                        ---
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2">
+                    <div class="items-center">
+                        <button id="btn-copy-result"
+                            class="w-full py-3 px-4 bg-emerald-900 hover:bg-emerald-800 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-emerald-700 text-sm">
+                            <i class="fa-regular fa-copy"></i> 結果をコピー
+                        </button>
+                    </div>
+                    <div class="items-center">
+                        <button
+                            class="w-full py-3 px-4 bg-sky-600 hover:bg-sky-500 active:scale-95 text-emerald-100 font-bold rounded-xl transition text-center gap-2 border border-sky-400 text-sm">
+                            <a id="twitter-post"><i class="fa-brands fa-twitter"></i> Twitterに投稿</a>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Preset Selection in Modal (Vertical) -->
+                <div
+                    class="flex items-start gap-2 bg-emerald-950/80 p-3.5 rounded-2xl border border-emerald-700/80 text-left mt-2 grid-cols-2">
+                    <div class="items-center">
+                        <label class="text-xs text-amber-200/90 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-sliders text-amber-400"></i> 負荷設定:
+                        </label>
+                    </div>
+                    <div class="items-center">
+                        <select id="setting-preset-modal"
+                            class="bg-emerald-900 border border-emerald-700 text-amber-100 text-xs font-bold rounded-lg px-3 focus:outline-none focus:border-amber-400 w-full cursor-pointer">
+                            <option value="light">軽量</option>
+                            <option value="normal">標準</option>
+                            <option value="heavy">激重</option>
+                            <option value="extreme">過労死ブラック</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Action Buttons (Vertical) -->
+                <div class="flex flex-col gap-3 pt-2">
+                    <button id="btn-retry"
+                        class="w-full py-3 px-4 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 active:scale-95 text-white font-black rounded-xl transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 text-sm">
+                        <i class="fa-solid fa-rotate-right"></i> 選択した設定で再実行
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- GPU Spec Modal -->
+        <div id="gpu-spec-modal"
+            class="hidden pointer-events-auto fixed inset-0 bg-emerald-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <div class="chalk-card max-w-2xl w-full p-6 rounded-3xl border border-amber-400/60 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b border-emerald-800 pb-3">
+                    <h3 class="text-lg font-black text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-microchip text-amber-400"></i> 詳細情報
+                    </h3>
+                    <button id="btn-close-gpu-spec" class="text-emerald-300 hover:text-white text-xl">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="gpu-spec-list" class="space-y-2 text-xs font-mono max-h-96 overflow-y-auto pr-2">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Controls Bar (Vertical Layout) -->
+        <footer
+            class="pointer-events-auto flex flex-col gap-3 bg-emerald-950/90 border border-amber-500/40 p-4 rounded-2xl backdrop-blur-md w-full max-w-xl mx-auto mb-2">
+            <!-- Settings Preset -->
+            <div class="flex items-start gap-2 w-full grid-cols-2">
+                <div>
+                    <label class="text-xs text-emerald-200/80 font-bold items-center gap-1.5 flex">
+                        <i class="fa-solid fa-sliders text-amber-400 items-center"></i> 負荷設定:
+                    </label>
+                </div>
+                <div>
+                    <select id="setting-preset"
+                        class="bg-emerald-900 border border-emerald-700 text-amber-100 text-xs font-bold rounded-lg px-3 focus:outline-none focus:border-amber-400 w-full cursor-pointer">
+                        <option value="light">軽量</option>
+                        <option value="normal" selected>標準</option>
+                        <option value="heavy">激重</option>
+                        <option value="extreme">過労死ブラック</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Start Button -->
+            <div class="w-full">
+                <button id="btn-start-benchmark"
+                    class="w-full px-4 py-2 md:py-2 bg-gradient-to-r from-amber-500 via-emerald-500 to-amber-500 bg-[length:200%_auto] hover:bg-right transition-all duration-500 text-white font-black text-base md:text-lg tracking-wider rounded-xl shadow-lg shadow-amber-500/30 active:scale-95 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>ベンチマーク開始</span>
+                </button>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast"
+        class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-emerald-900 text-amber-200 px-4 py-2 rounded-xl text-xs font-bold border border-amber-500/50 shadow-xl opacity-0 transition-opacity pointer-events-none z-50">
+        メッセージ
+    </div>
+
+
+    <!-- Main JavaScript Logic -->
+    <script type="module">
+        import * as THREE from "three/webgpu";
+        import * as TSL from "three/tsl";
+        const { Fn, vec3, vec4, positionLocal, positionWorld, normalLocal, time, sin, cos, pass, mrt, output, normalView, metalness, roughness } = TSL;
+        import { ao } from "three/addons/tsl/display/GTAONode.js";
+        import { bloom } from "three/addons/tsl/display/BloomNode.js";
+
+        const asciiArts = {
+            'pc': [
+                "ｐ\n\n ＿＿＿(Д`;)\n＼:::::ﾉ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟ\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟｎ\n\n ＿＿＿(Д`;)\n＼:::::ﾉ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｓ\n\n ＿＿＿(Д`;)\n＼::::／(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｼ\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+                "ﾊﾟﾝｼ!\n\n ＿＿＿(Д`;)\n＼::::ノ(   )\n  ￣￣￣＜＜",
+            ],
+            'gear': [
+                " ＿\n ／|＿＿＿＿＿＿＿＿\n|／／／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿\n `)／|＿＿＿＿＿＿＿\n￣|／／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿＿\n ー`)／|＿＿＿＿＿＿\n￣￣|／／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                " ＿＿＿＿\n(´ー`)／|＿＿＿＿＿\n￣￣￣|／／／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　 ＿＿＿＿\n ／(´ー`)／|＿＿＿＿\n|￣￣￣￣|／／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　 ＿＿＿＿\n＿ ／(´ー`)／|＿＿＿\n／|￣￣￣￣|／／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　 ＿＿＿＿\n＿＿ ／(´ー`)／|＿＿\n／／|￣￣￣￣|／／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　 ＿＿＿＿\n＿＿＿ ／(´ー`)／|＿\n／／／|￣￣￣￣|／／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　 ＿＿＿＿\n＿＿＿＿ ／(´ー`)／|\n／／／／|￣￣￣￣|／\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　 ＿＿＿＿\n＿＿＿＿ ／(´ー`)\n／／／／／|￣￣￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　 ＿＿＿\n＿＿＿＿＿＿ ／(´ー\n／／／／／／|￣￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　　 ＿＿\n＿＿＿＿＿＿＿ ／(´\n／／／／／／／|￣￣\n￣￣￣￣￣￣￣￣￣",
+                "　　　　　　　　　 ＿\n＿＿＿＿＿＿＿＿ ／(\n／／／／／／／／|￣\n￣￣￣￣￣￣￣￣￣",
+                "　\n＿＿＿＿＿＿＿＿＿ ／\n／／／／／／／／／|\n￣￣￣￣￣￣￣￣￣",
+            ],
+            'baton': [
+                "　 /＿+ヽ ||\n　(;´Д`)ﾉ\n ノ(　　)\n　 ノωヽ",
+                "　 /＿+ヽ　//\n　(;´Д`)ノ\n　 (ﾉ　 )\n　 ノωヽ",
+                "　 /＿+ヽ\n　(;´Д`)\n　ﾉ(　　)－＝＝\n　 ノωヽ",
+                "　 /＿+ヽ　//\n　(;´Д`)ノ\n　 (ﾉ　 )\n　 ノωヽ",
+            ],
+            'seaweed': [
+                "+=++=+\n(;´Д`)\n(〜　)〜\n//||\\\\\n ノヽ",
+                " +=++=+\n (;´Д`)\n (〜　)〜\n //||\\\\\n　ノ ヽ",
+                "+=++=+\n(;´Д`)\n(〜　)〜\n//||\\\\\nノ ヽ",
+                "+=++=+\n(´Д`;)\n~( 〜)\n//||\\\\\nノ ヽ",
+                "+=++=+\n(´Д`;)\n〜(　〜)\n//||\\\\\n ノヽ",
+                " +=++=+\n (´Д`;)\n〜(　〜)\n //||\\\\\n　ノヽ",
+                "　+=++=+\n　(´Д`;)\n〜(　〜)\n　//||\\\\\n　 ノヽ",
+                " +=++=+\n (´Д`;)\n〜(　〜)\n //||\\\\\n　ノヽ",
+                "+=++=+\n(´Д`;)\n〜(　〜)\n//||\\\\\n ノヽ",
+            ],
+            'pizza_slice': [
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　(⌒⌒⌒)\n　　|　　 |\n　　 |　　 |\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　 (⌒⌒⌒)\n　　|　　 |\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　 (⌒⌒⌒)\n　 ＼　　＼\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n (⌒⌒⌒)\n　＼　　＼\n　　＼　　＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　 (⌒⌒⌒)\n　 ＼　　＼\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　 (⌒⌒⌒)\n　　|　　 |\n　　 ＼　 ＼\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　(⌒⌒⌒)\n　　|　　 |\n　　 |　　 |\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　 (⌒⌒⌒)\n　　　 /　　/\n　　　/　　/\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　　　(⌒⌒⌒)\n　　　　　／　　／\n　　　　／　　／\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　\n　　　　 (⌒⌒⌒)\n　　　 /　　/\n　　　/　　/\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+                "　　　ドカーン\n　　　(⌒⌒⌒)\n　　　 |　　|\n　　　 |　　|\n　　　(;´Д`)＿\n　　　<(　 )ノ\n　　　 ノωヽ",
+            ],
+            'pants': [
+                " \n \n ",
+                "         (Д`\n          (┌\n           <",
+                "    (Д`; )\n     (┌ノ)─\n      <  ヽ",
+                "(Д`; )   ＿＿＿\n (┌ノ)─|ｾﾝﾁｭﾘｰ|\n  <  ヽ   ￣◎￣",
+                "; )  ＿＿＿\nノ)─|ｾﾝﾁｭﾘｰ|\n ヽ   ￣◎￣",
+                " ＿＿＿\n|ｾﾝﾁｭﾘｰ|\n ￣◎￣",
+                " \n \n ",
+            ],
+            'ramen': [
+                "　\n　\n　\n　\n　\n　　＿＿＿＿＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　\n　\n　\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　\n　\n　　　(⌒⌒⌒)\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　\n　　　(⌒⌒⌒)\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　\n　　　(;´Д`)\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　\n　　ヽ(;´Д`)ﾉ\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　\n　　ヽ(;´Д`)ﾉ\n　　　 (　　)\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　\n　　ヽ(;´Д`)ﾉ\n　　　 (　　)\n　　　ノ　ヽ\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+                "　　ヽ(;´Д`)ﾉ\n　　　 ( η )\n　　　 ノωヽ\n　　　 | 　|\n　　　 | 　|\n　　＿_|_＿|＿\n　　＼　　　／\n　　　＝＝＝",
+            ],
+            'tessellation': [
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　△\n　　　　　○\n　　　　　□\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　○\n　　　　　□\n　　　　　△\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+                "　　　　ｳｵﾝﾄﾞｰｽﾞ\n　　　　　□\n　　　　　△\n　　　　　○\n　γ⌒ヽ　｜\n　(´ー`)ノ\n　ﾉ(＿＿)\n　 |_∧_|\n　 Ｕ Ｕ",
+            ],
+            'physics': [
+                "　\n　\n　\n　\n　",
+                "　ノωヽ\n　\n　\n　\n　",
+                "　(　　)\n　ノωヽ\n　\n　\n　",
+                "ヽ(;´Д`)ノ\n　(　　)\n　ノωヽ\n　\n　",
+                "　\nヽ(;´Д`)ノ\n　(　　)\n　ノωヽ\n　",
+                "　\n　\nヽ(;´Д`)ノ\n　(　　)\n　ノωヽ",
+                "　\n　\n　\nヽ(;´Д`)ノ\n　(　　)",
+                "　\n　\n　\n　\nヽ(;´Д`)ノ",
+            ],
+            'postprocess': [
+                "(´ー｀)",
+                "(ー｀　)",
+                "(｀　　)",
+                "(　　　)",
+                "(　　´)",
+                "(　´ー)",
+            ],
+            'dreamcast': [
+                "　　\"(;´Д`)\nε≡ \"ｺ|￣￣￣＼\nｶﾞﾀﾝ　\" ◎＿＿＿◎\"\n　　　　 \"\"<\\\\>\n　　｜￣￣￣￣￣￣￣￣￣￣｜",
+                "　　 \"(;´Д`)　ｶﾞﾀﾝ\nε≡Ξ ｺ|￣￣￣＼\"\nｶﾞﾀﾝ　\" ◎＿＿＿◎ \"\n　　　　 \"<||>\"\n　　｜￣￣￣￣￣￣￣￣￣￣｜",
+                "　　　\" (;´Д`)ｺﾞﾄﾝ\nε≡　　ｺ|￣￣￣＼\"\n　　　　\"◎＿＿＿◎\"\n　　　　　<//>\"\"\n　　｜￣￣￣￣￣￣￣￣￣￣｜",
+                "　　 \"(;´Д`)　ｺﾞﾄﾝ\nε≡Ξ ｺ|￣￣￣＼ \"\nｺﾞﾄﾝ　\" ◎＿＿＿◎ \"\n　　　　 \"<||>\"\n　　｜￣￣￣￣￣￣￣￣￣￣｜",
+            ],
+            'all': [
+                "　\n(;´Д`)\n (ヽ ﾉ)\n< ●●>",
+                "　　　　●\n(;´Д`)ﾉ\n (ヽ　)\n　> ●>",
+                "　\n(;´Д`)\n (ヽ　)ー●\n　> ●>",
+                "　\n(;´Д`)\n (ヽ ﾉ)\n< ●●>",
+                "　\n　(;´Д`)\n●ー(　 ﾉ)\n　　 > ●>",
+                "●\nヽ(;´Д`)\n　 (　 ﾉ)\n　 > ●>",
+                "　　　　　●\n　(;´Д`)ﾉ\n　ﾉ(　　)へ\n● くω",
+                "●　　　　●\nヽ(;´Д`)ﾉ\n　 (　　)\n　 くω ヽ",
+            ],
+        };
+
+        let lastEarnedFiveThousand = 0;
+        let currentAaIndex = 0;
+
+        // ONNX Runtime and AI variables
+        let espcnSession = null;
+        let espcnInputTensor = null;
+        let isInferencing = false;
+        let aiTexture = null; // AI推論結果を格納するテクスチャ
+        let espcnInputArray = new Float32Array(1 * 1 * 224 * 224); // 入力用のテンソルデータ
+
+        // OS & GPU variables
+        let currentOSInfo = "Unknown OS";
+        let isBenchmarking = false;
+        let benchStartTime = 0;
+        let BENCH_DURATION = 60; // 秒
+
+        let frameCount = 0;
+        let fps = 60;
+        let minFps = 999;
+        let maxFps = 0;
+        let fpsHistory = [];
+        let totalScores = 0;
+        let totalRenderedFrames = 0;
+        let totalShifts = 0;
+        let phaseScores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 12 phases
+        let lastTime = performance.now();
+
+        let presetMultiplier = 1.0;
+        let currentSpawnedType = '';
+
+        // --- OS & GPU Detection Logic ---
+        async function fetchOSInfo() {
+            let osName = "Unknown OS";
+            let osVersion = "";
+
+            // Attempt to use User-Agent Client Hints API first
+            if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+                try {
+                    const values = await navigator.userAgentData.getHighEntropyValues(["platform", "platformVersion", "model"]);
+
+                    if (values.platform === "Windows") {
+                        osName = "Windows";
+                        const majorVersion = parseInt(values.platformVersion.split('.')[0]);
+                        // Windows 11 uses major version 13 or higher in Client Hints
+                        if (majorVersion >= 13) {
+                            osVersion = "11";
+                        } else if (majorVersion > 0) {
+                            osVersion = "10";
+                        }
+                    } else if (values.platform === "macOS") {
+                        osName = "macOS";
+                        osVersion = values.platformVersion;
+                    } else if (values.platform === "Android") {
+                        osName = "Android";
+                        osVersion = values.platformVersion;
+                    } else if (values.platform === "Chrome OS") {
+                        osName = "Chrome OS";
+                        osVersion = values.platformVersion;
+                    } else {
+                        osName = values.platform || "Unknown OS";
+                        osVersion = values.platformVersion || "";
+                    }
+
+                    if (osName !== "Unknown OS") {
+                        currentOSInfo = osVersion ? `${osName} ${osVersion}` : osName;
+                        return; // Successfully resolved using Client Hints
+                    }
+                } catch (e) {
+                    console.warn("User-Agent Client Hints error, falling back to traditional User-Agent parsing.", e);
+                }
+            }
+
+            // Fallback: traditional User-Agent parsing
+            const ua = navigator.userAgent;
+
+            if (ua.indexOf("Windows NT 10.0") !== -1) { osName = "Windows"; osVersion = "10 / 11"; }
+            else if (ua.indexOf("Windows NT 6.3") !== -1) { osName = "Windows"; osVersion = "8.1"; }
+            else if (ua.indexOf("Windows NT 6.2") !== -1) { osName = "Windows"; osVersion = "8"; }
+            else if (ua.indexOf("Windows NT 6.1") !== -1) { osName = "Windows"; osVersion = "7"; }
+            else if (/iPhone|iPod/.test(ua)) {
+                osName = "iOS";
+                const match = ua.match(/OS (\d+[._]\d+[._]?\d*) like Mac OS X/);
+                if (match) osVersion = match[1].replace(/_/g, ".");
+            }
+            else if (ua.indexOf("iPad") !== -1) {
+                osName = "iPadOS";
+                const match = ua.match(/OS (\d+[._]\d+[._]?\d*) like Mac OS X/);
+                if (match) osVersion = match[1].replace(/_/g, ".");
+            }
+            else if (ua.indexOf("Mac OS X") !== -1) {
+                if (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) {
+                    osName = "iPadOS"; // Tablets claiming to be Mac
+                } else {
+                    osName = "macOS";
+                    const match = ua.match(/Mac OS X (\d+[._]\d+[._]?\d*)/);
+                    if (match) osVersion = match[1].replace(/_/g, ".");
+                }
+            }
+            else if (/Android/.test(ua)) {
+                osName = "Android";
+                const match = ua.match(/Android (\d+(\.\d+)?)/);
+                if (match) osVersion = match[1];
+            }
+            else if (ua.indexOf("FreeBSD") !== -1) { osName = "FreeBSD"; }
+            else if (ua.indexOf("Linux") !== -1) { osName = "Linux"; }
+
+            currentOSInfo = osVersion ? `${osName} ${osVersion}` : osName;
+        }
+
+        function getOSInfo() {
+            return currentOSInfo;
+        }
+
+        async function getDetailedGPUInfo() {
+            const pr = Math.min(window.devicePixelRatio, 2);
+            const w = Math.round(window.innerWidth * pr);
+            const h = Math.round(window.innerHeight * pr);
+
+            let rawRenderer = '不明なグラフィックデバイス';
+            let rawVendor = '不明なベンダー';
+            let vendorType = 'generic';
+            let specs = [];
+
+            // WebGPU is the primary backend for this benchmark. GPUAdapterInfo
+            // is the WebGPU-native replacement for WebGL's UNMASKED_VENDOR/RENDERER.
+            let adapter = null;
+            let adapterInfo = null;
+            let actualBackend = 'WebGPU';
+
+            try {
+                if (typeof navigator !== 'undefined' && navigator.gpu) {
+                    adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+                    if (adapter) {
+                        adapterInfo = adapter.info || null;
+                    }
+                }
+            } catch (e) {
+                console.warn('WebGPU adapter info is unavailable:', e);
+            }
+
+            // WebGPURenderer can fall back to a WebGL2 backend. Report the actual
+            // backend instead of assuming WebGPU merely because the renderer class
+            // is WebGPURenderer.
+            try {
+                const backendName = renderer?.backend?.constructor?.name || '';
+                if (backendName.includes('WebGL')) actualBackend = 'WebGL 2 (fallback)';
+            } catch (_) { }
+
+            // WebGPU intentionally exposes only limited identifying information for
+            // fingerprinting protection. On Chromium/macOS, a separate WebGL context
+            // can expose the concrete Metal renderer string (for example
+            // "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, ...)").
+            // This context is used only for identification; the benchmark itself
+            // continues to render through WebGPU.
+            let webglRendererForIdentification = '';
+            let webglVendorForIdentification = '';
+            try {
+                const idCanvas = document.createElement('canvas');
+                const idGL = idCanvas.getContext('webgl2') || idCanvas.getContext('webgl');
+                if (idGL) {
+                    const dbg = idGL.getExtension('WEBGL_debug_renderer_info');
+                    if (dbg) {
+                        webglVendorForIdentification = idGL.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '';
+                        webglRendererForIdentification = idGL.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '';
+                    } else {
+                        webglVendorForIdentification = idGL.getParameter(idGL.VENDOR) || '';
+                        webglRendererForIdentification = idGL.getParameter(idGL.RENDERER) || '';
+                    }
+                }
+            } catch (e) {
+                console.warn('WebGL GPU identification probe failed:', e);
+            }
+
+            const extractAppleSiliconName = (value) => {
+                if (!value) return '';
+                const m = String(value).match(/\bApple\s+(M(?:1|2|3|4)(?:\s+(?:Pro|Max|Ultra))?(?:\s+[A-Za-z0-9-]+)?)/i);
+                return m ? `Apple ${m[1].replace(/\s+/g, ' ').trim()}` : '';
+            };
+
+            if (adapterInfo) {
+                rawVendor = adapterInfo.vendor || '';
+                const concreteAppleName = extractAppleSiliconName(webglRendererForIdentification)
+                    || extractAppleSiliconName(adapterInfo.description)
+                    || extractAppleSiliconName(adapterInfo.device);
+                rawRenderer = concreteAppleName
+                    || adapterInfo.description
+                    || adapterInfo.device
+                    || adapterInfo.architecture
+                    || '';
+
+                specs = [
+                    { name: 'OS (動作環境)', value: getOSInfo() },
+                    { name: '実行解像度 (DPR反映)', value: `${w} x ${h}` },
+                    { name: 'グラフィックス API', value: actualBackend },
+                    { name: 'WebGPU API', value: 'WebGPU' },
+                    { name: 'シェーダー言語', value: 'WGSL (WebGPU Shading Language)' },
+                    { name: 'GPU ベンダー', value: adapterInfo.vendor || '取得不可' },
+                    { name: 'GPU アーキテクチャ', value: adapterInfo.architecture || '取得不可' },
+                    { name: 'GPU デバイス ID', value: adapterInfo.device || '取得不可' },
+                    { name: 'GPU 説明', value: adapterInfo.description || '取得不可' },
+                    { name: 'GPU モデル取得元', value: extractAppleSiliconName(webglRendererForIdentification) ? 'WebGL renderer string (WebGPU描画には不使用)' : 'WebGPU AdapterInfo' }
+                ];
+
+                if (adapter?.limits) {
+                    const l = adapter.limits;
+                    specs.push(
+                        { name: '最大テクスチャサイズ (2D)', value: `${l.maxTextureDimension2D ?? '不明'} px` },
+                        { name: '最大テクスチャ配列レイヤー', value: l.maxTextureArrayLayers ?? '不明' },
+                        { name: '最大 Bind Group 数', value: l.maxBindGroups ?? '不明' },
+                        { name: '最大 Uniform バッファサイズ', value: `${l.maxUniformBufferBindingSize ?? '不明'} bytes` },
+                        { name: '最大ストレージバッファサイズ', value: `${l.maxStorageBufferBindingSize ?? '不明'} bytes` },
+                        { name: '最大頂点属性数', value: l.maxVertexAttributes ?? '不明' },
+                        { name: '最大頂点バッファ数', value: l.maxVertexBuffers ?? '不明' },
+                        { name: '最大カラーアタッチメント数', value: l.maxColorAttachments ?? '不明' }
+                    );
+                }
+
+                if (adapter?.features) {
+                    specs.push({
+                        name: '対応 WebGPU Features',
+                        value: Array.from(adapter.features).join(', ') || 'core features only'
+                    });
+                }
+            } else {
+                // A WebGPU unavailable browser may still be using WebGPURenderer's
+                // WebGL2 fallback backend. Keep the UI truthful in that case.
+                const glCanvas = document.createElement('canvas');
+                const gl = glCanvas.getContext('webgl2') || glCanvas.getContext('webgl');
+                if (gl) {
+                    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    rawVendor = debugInfo
+                        ? (gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '')
+                        : (gl.getParameter(gl.VENDOR) || '');
+                    rawRenderer = debugInfo
+                        ? (gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '')
+                        : (gl.getParameter(gl.RENDERER) || '');
+
+                    specs = [
+                        { name: 'OS (動作環境)', value: getOSInfo() },
+                        { name: '実行解像度 (DPR反映)', value: `${w} x ${h}` },
+                        { name: 'グラフィックス API', value: actualBackend },
+                        { name: 'WebGPU API', value: '利用不可 / WebGL 2 フォールバック' },
+                        { name: 'シェーダー言語', value: 'GLSL ES (WebGL 2 fallback)' },
+                        { name: 'WebGL バージョン', value: gl.getParameter(gl.VERSION) },
+                        { name: 'シェーダー言語バージョン', value: gl.getParameter(gl.SHADING_LANGUAGE_VERSION) }
+                    ];
+                } else {
+                    specs = [
+                        { name: 'OS (動作環境)', value: getOSInfo() },
+                        { name: '実行解像度 (DPR反映)', value: `${w} x ${h}` },
+                        { name: 'グラフィックス API', value: '利用可能なGPU APIを検出できません' },
+                        { name: 'WebGPU API', value: '利用不可' },
+                        { name: 'シェーダー言語', value: '取得不可' }
+                    ];
+                }
+            }
+
+            let cleanName = rawRenderer;
+
+            if (cleanName.includes('ANGLE')) {
+                const match = cleanName.match(/ANGLE\s*\([^,]+,\s*([^,]+)/);
+                if (match && match[1]) {
+                    cleanName = match[1];
+                } else {
+                    cleanName = cleanName.replace(/ANGLE\s*\(([^)]+)\)/, '$1');
+                }
+            }
+
+            cleanName = cleanName
+                .replace(/ANGLE/gi, '')
+                .replace(/Metal\s*Renderer:/gi, '')
+                .replace(/Direct3D\d+.*/gi, '')
+                .replace(/OpenGL.*/gi, '')
+                .replace(/vs_\d+_\d+ ps_\d+_\d+/g, '')
+                .replace(/\(r\)/gi, '®')
+                .replace(/\(tm\)/gi, '™')
+                .replace(/^Mesa /gi, '')
+                .replace(/\(0x[0-9a-fA-F]+\)/gi, '')
+                .trim();
+
+            cleanName = cleanName.replace(/^[\s,:-]+|[\s,:-]+$/g, '');
+
+            const nameUpper = cleanName.toUpperCase();
+            const vendorUpper = rawVendor.toUpperCase();
+
+            if (nameUpper.includes('NVIDIA') || vendorUpper.includes('NVIDIA')) {
+                vendorType = 'nvidia';
+            } else if (nameUpper.includes('AMD') || nameUpper.includes('RADEON') || vendorUpper.includes('ATI')) {
+                vendorType = 'amd';
+            } else if (nameUpper.includes('INTEL') || vendorUpper.includes('INTEL')) {
+                vendorType = 'intel';
+            } else if (nameUpper.includes('APPLE') || vendorUpper.includes('APPLE')) {
+                vendorType = 'apple';
+            } else if (nameUpper.includes('QUALCOMM') || vendorUpper.includes('QUALCOMM') || nameUpper.includes('ADRENO')) {
+                vendorType = 'qualcomm';
+            } else if (nameUpper.includes('ARM') || vendorUpper.includes('ARM') || nameUpper.includes('MALI') || nameUpper.includes('IMMORTALIS')) {
+                vendorType = 'arm';
+            } else if (nameUpper.includes('POWERVR') || vendorUpper.includes('IMAGINATION')) {
+                vendorType = 'powervr';
+            }
+
+            return { vendorType, rendererName: cleanName || 'Generic Graphics Device', rawVendor, specs };
+        }
+
+        async function updateGPUUI() {
+            const info = await getDetailedGPUInfo();
+            const nameEl = document.getElementById('gpu-name-display');
+            const badgeEl = document.getElementById('gpu-vendor-badge');
+            const iconEl = document.getElementById('gpu-icon-container');
+
+            nameEl.textContent = info.rendererName;
+
+            if (info.vendorType === 'nvidia') {
+                badgeEl.textContent = 'NVIDIA';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-emerald-600 text-white rounded font-bold border border-emerald-400';
+                iconEl.className = 'text-2xl text-emerald-300 shrink-0';
+            } else if (info.vendorType === 'amd') {
+                badgeEl.textContent = 'AMD';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-red-600 text-white rounded font-bold border border-red-400';
+                iconEl.className = 'text-2xl text-red-300 shrink-0';
+            } else if (info.vendorType === 'intel') {
+                badgeEl.textContent = 'Intel';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-blue-600 text-white rounded font-bold border border-blue-400';
+                iconEl.className = 'text-2xl text-blue-300 shrink-0';
+            } else if (info.vendorType === 'apple') {
+                badgeEl.textContent = 'Apple';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-gray-600 text-white rounded font-bold border border-blue-400';
+                iconEl.className = 'text-2xl text-gray-300 shrink-0';
+            } else if (info.vendorType === 'apple') {
+                badgeEl.textContent = 'Apple';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-gray-600 text-white rounded font-bold border border-gray-400';
+                iconEl.className = 'text-2xl text-gray-300 shrink-0';
+            } else if (info.vendorType === 'qualcomm') {
+                badgeEl.textContent = 'Qualcomm';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-red-700 text-white rounded font-bold border border-red-500';
+                iconEl.className = 'text-2xl text-red-400 shrink-0';
+            } else if (info.vendorType === 'arm') {
+                badgeEl.textContent = 'Arm';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-blue-700 text-white rounded font-bold border border-blue-500';
+                iconEl.className = 'text-2xl text-blue-400 shrink-0';
+            } else if (info.vendorType === 'powervr') {
+                badgeEl.textContent = 'PowerVR';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-purple-600 text-white rounded font-bold border border-purple-400';
+                iconEl.className = 'text-2xl text-purple-300 shrink-0';
+            } else {
+                badgeEl.textContent = 'GPU';
+                badgeEl.className = 'px-1.5 py-0.2 text-[9px] bg-amber-600 text-white rounded font-bold border border-amber-400';
+                iconEl.className = 'text-2xl text-amber-300 shrink-0';
+            }
+
+            const specListEl = document.getElementById('gpu-spec-list');
+            specListEl.innerHTML = '';
+            info.specs.forEach(s => {
+                const row = document.createElement('div');
+                row.className = 'flex justify-between py-1 border-b border-emerald-800 text-emerald-100';
+                row.innerHTML = `<span class="text-emerald-300/70">${s.name}:</span><span class="font-bold text-amber-300">${s.value}</span>`;
+                specListEl.appendChild(row);
+            });
+        }
+
+        // --- Three.js 3D Engine Setup (Chalkboard Dark Teal Environment) ---
+        // --- ONNX Runtime AI Functions ---
+        async function preloadONNXModel() {
+            try {
+                const modelUrl = 'https://huggingface.co/onnxmodelzoo/super-resolution-10/resolve/main/super-resolution-10.onnx';
+
+                // ORT-Webのフェッチバグを回避するため、手動でArrayBufferとして取得
+                const response = await fetch(modelUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const modelBuffer = await response.arrayBuffer();
+
+                // LFSポインタファイル（テキスト）を誤ってダウンロードしていないかサイズで検証 (ESPCNの実体は約200KB)
+                if (modelBuffer.byteLength < 1000) {
+                    throw new Error(`Downloaded model size is too small (${modelBuffer.byteLength} bytes). It is likely a Git LFS pointer file.`);
+                }
+
+                // Prioritize WebGL for GPU acceleration (ArrayBufferを直接渡す)
+                espcnSession = await ort.InferenceSession.create(modelBuffer, {
+                    executionProviders: ['webgpu', 'webgl', 'wasm'],
+                    powerPreference: 'high-performance',
+                    graphOptimizationLevel: 'all'
+                });
+
+                // Prepare dummy input tensor matching [1, 1, 224, 224] for ESPCN
+                const espcnInputSize = 224;
+                const espcnInputArray = new Float32Array(1 * 1 * espcnInputSize * espcnInputSize);
+                for (let i = 0; i < espcnInputArray.length; i++) {
+                    espcnInputArray[i] = Math.random();
+                }
+                espcnInputTensor = new ort.Tensor('float32', espcnInputArray, [1, 1, espcnInputSize, espcnInputSize]);
+
+                // 初回推論(ウォームアップ)を実行
+                // ベンチマーク中にシェーダーコンパイルや最適化が走ってフリーズするのを防ぐ
+                const feeds = {};
+                feeds[espcnSession.inputNames[0]] = espcnInputTensor;
+                await espcnSession.run(feeds);
+
+                console.log("ESPCN AI Model loaded successfully!");
+                return true;
+            } catch (e) {
+                console.error("Failed to load ESPCN model", e);
+                showToast("AIモデルの準備に失敗しました。");
+                return false;
+            }
+        }
+
+        async function runInference(time = 0) {
+            if (isInferencing || !espcnSession) return;
+            isInferencing = true;
+            try {
+                // 動的な波形パターンを入力データとして生成 (224x224)
+                for (let y = 0; y < 224; y++) {
+                    for (let x = 0; x < 224; x++) {
+                        let val = Math.sin(x * 0.15 + time * 2.0) * Math.cos(y * 0.15 - time * 1.5);
+                        espcnInputArray[y * 224 + x] = Math.max(0, Math.min(1, (val + 1.0) / 2.0));
+                    }
+                }
+
+                // Tensorの生成
+                const tensor = new ort.Tensor('float32', espcnInputArray, [1, 1, 224, 224]);
+                const feeds = {};
+                feeds[espcnSession.inputNames[0]] = tensor;
+
+                // 推論実行
+                const results = await espcnSession.run(feeds);
+                const outputTensor = results[espcnSession.outputNames[0]];
+                const outputData = outputTensor.data;
+                const dims = outputTensor.dims;
+
+                // モデルの出力サイズ (通常は 672x672)
+                const height = dims[2];
+                const width = dims[3];
+
+                // テクスチャのサイズが異なる場合は再作成
+                if (aiTexture && (aiTexture.image.width !== width || aiTexture.image.height !== height)) {
+                    aiTexture.dispose();
+                    aiTexture = new THREE.DataTexture(new Uint8Array(width * height * 4), width, height, THREE.RGBAFormat);
+                }
+
+                // 推論結果をDataTextureに反映
+                if (aiTexture && outputData.length === width * height) {
+                    const texData = aiTexture.image.data;
+                    for (let i = 0; i < width * height; i++) {
+                        let val = outputData[i] * 255.0;
+                        texData[i * 4] = val * 0.2; // R (サイバー感のある青緑に)
+                        texData[i * 4 + 1] = val * 0.8; // G
+                        texData[i * 4 + 2] = val;       // B
+                        texData[i * 4 + 3] = 255;       // A
+                    }
+                    aiTexture.needsUpdate = true;
+                }
+            } catch (e) {
+                console.error("ONNX Inference runtime error:", e);
+            }
+            isInferencing = false;
+        }
+
+
+        // --- Three.js 3D Engine Setup ---
+        let scene, camera, renderer, dirLight, ambientLight, gearFillLights = [];
+        let jobObjectsGroup = [];
+        let dynamicLights = [];
+        let guardParticles;
+        let hallucinationMesh;
+        let megaPizzaMesh; // The Ultimate Phase Mesh
+        let renderPipeline, scenePass, sceneColorNode, sceneDepthNode, sceneNormalNode;
+        let postProcessingPhase = -1;
+        let tessellationMaterial = null; // Shared TSL node material for Phase 8
+        let tessellationColorTexture = null;
+        let tessellationDisplacementTexture = null;
+        let seaweedMaterial = null; // Shared TSL node material for Phase 4
+        let physicsInstancedMesh; // For Phase 10
+        let physicsData = [];
+
+        async function init3D() {
+            // Phase 3のパーティクルの数
+            const guardParticleCapacity = 200000;
+
+            const container = document.getElementById('canvas-container');
+            scene = new THREE.Scene();
+
+            scene.fog = new THREE.FogExp2(0x004040, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 28);
+
+            renderer = new THREE.WebGPURenderer({
+                antialias: true,
+                alpha: false,
+                powerPreference: "high-performance"
+            });
+            renderer.setClearColor(0x004040, 1.0); // 黒板色背景
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            container.appendChild(renderer.domElement);
+            await renderer.init();
+
+            // --- ライト設定 ---
+            const ambientLight = new THREE.AmbientLight(0xfff0dd, 0.6);
+            scene.add(ambientLight);
+
+            dirLight = new THREE.DirectionalLight(0xffe8cc, 2.5);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+
+            // シャドウマップの解像度
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene.add(dirLight);
+
+            for (let i = 0; i < 6; i++) {
+                const light = new THREE.PointLight(0xfcb045, 0, 25);
+                scene.add(light);
+                dynamicLights.push(light);
+            }
+
+            // Phase 2専用フィルライト：金属面の暗部にも反射の階調を残す
+            const gearFillConfigs = [
+                { color: 0xe8f2ff, position: [-8, 10, 6], intensity: 2.4, distance: 24 },
+                { color: 0xffe1bf, position: [8, 7, 4], intensity: 2.1, distance: 22 },
+                { color: 0xa9d5ff, position: [0, 5, -11], intensity: 1.8, distance: 22 },
+                { color: 0xffffff, position: [-10, 4, -6], intensity: 1.7, distance: 20 },
+                { color: 0xffc98f, position: [10, 4, -5], intensity: 1.6, distance: 20 },
+                { color: 0xb8e3ff, position: [-4, 8, -10], intensity: 1.5, distance: 22 },
+                { color: 0xfff0d2, position: [4, 9, 10], intensity: 1.5, distance: 22 },
+                { color: 0xdbe8ff, position: [0, 2, 8], intensity: 1.3, distance: 18 }
+            ];
+            gearFillConfigs.forEach(cfg => {
+                const light = new THREE.PointLight(cfg.color, 0, cfg.distance);
+                light.position.set(...cfg.position);
+                light.userData.baseIntensity = cfg.intensity;
+                scene.add(light);
+                gearFillLights.push(light);
+            });
+            // Stage Counter Base
+            createWorkStage();
+
+            // Guard Light Particles
+            createGuardLightParticles(guardParticleCapacity);
+
+            // Hallucination Mesh
+            createHallucinationMesh();
+
+            // Mega Pizza Mesh
+            createMegaPizza();
+            createPhysicsMesh();
+
+            // WebGPUのシャドウマップを一度生成してからGodRays用TSLノードを構築する。
+            // これにより初回コンパイル時の shadow.map.depthTexture === null を避ける。
+            try {
+                if (renderer.renderAsync) {
+                    await renderer.renderAsync(scene, camera);
+                } else {
+                    renderer.render(scene, camera);
+                }
+            } catch (warmupError) {
+                console.warn('WebGPU warm-up render skipped:', warmupError);
+            }
+
+            initPostProcessing(); // TSL post-processing 初期化
+
+            // AIテクスチャの初期化 (初期サイズはESPCNの出力に合わせる)
+            aiTexture = new THREE.DataTexture(new Uint8Array(672 * 672 * 4), 672, 672, THREE.RGBAFormat);
+            aiTexture.needsUpdate = true;
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // TSL/WebGPU post-processing pipeline. Legacy WebGL shader passes are removed.
+        function initPostProcessing() {
+            renderPipeline = new THREE.RenderPipeline(renderer);
+
+            // Official TSL post-processing pattern:
+            // pass(scene, camera) -> MRT -> getTextureNode() -> outputNode
+            scenePass = pass(scene, camera);
+            scenePass.setMRT(mrt({
+                output,
+                normal: normalView
+            }));
+
+            sceneColorNode = scenePass.getTextureNode('output');
+            sceneDepthNode = scenePass.getTextureNode('depth');
+            sceneNormalNode = scenePass.getTextureNode('normal');
+
+            // Keep the renderer's normal output color transform enabled.
+            // This avoids constructing a null RenderOutputNode manually.
+            renderPipeline.outputNode = sceneColorNode;
+        }
+
+        function updatePostProcessing(phaseIndex) {
+            if (!renderPipeline || phaseIndex === postProcessingPhase) return;
+            postProcessingPhase = phaseIndex;
+
+            // Start from the beauty pass. These nodes are documented and stable
+            // with the current WebGPU/TSL pipeline.
+            let outputNode = sceneColorNode;
+
+            // Phase 6 / 12: use a bloom-heavy volumetric-light approximation.
+            // This replaces the legacy custom raymarch shader without introducing
+            // a separate shadow-depth dependency during node compilation.
+            if (phaseIndex === 5 || phaseIndex === 11) {
+                const volumeBloom = bloom(sceneColorNode, 1.5, 0.65, 0.75);
+                outputNode = outputNode.add(volumeBloom);
+            }
+
+            // Phase 10 / 12: official GTAO + Bloom composition.
+            if (phaseIndex === 9 || phaseIndex === 11) {
+                const aoEffect = ao(sceneDepthNode, sceneNormalNode, camera);
+                const aoNode = aoEffect.getTextureNode();
+                outputNode = outputNode.mul(vec4(vec3(aoNode.r), 1.0));
+                outputNode = outputNode.add(bloom(sceneColorNode, 2.5, 0.6, 0.6));
+            }
+
+            renderPipeline.outputNode = outputNode;
+            renderPipeline.needsUpdate = true;
+        }
+
+        function createPhysicsMesh() {
+            // タライ（金だらい）の断面を作成して回転体にする
+            const points = [];
+            points.push(new THREE.Vector2(0, 0));       // 底（外側）の中心
+            points.push(new THREE.Vector2(0.5, 0));     // 底（外側）の端
+            points.push(new THREE.Vector2(0.65, 0.4));  // 縁（外側）
+            points.push(new THREE.Vector2(0.6, 0.4));   // 縁（内側）
+            points.push(new THREE.Vector2(0.45, 0.05)); // 底（内側）の端
+            points.push(new THREE.Vector2(0, 0.05));    // 底（内側）の中心
+
+            const geo = new THREE.LatheGeometry(points, 12); // 大量描画のため分割数を少なめに
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xcccccc, // 銀色
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            physicsInstancedMesh = new THREE.InstancedMesh(geo, mat, 20000); // 余裕を持たせた最大数
+            physicsInstancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+            physicsInstancedMesh.castShadow = true;
+            physicsInstancedMesh.receiveShadow = true;
+            physicsInstancedMesh.visible = false;
+            scene.add(physicsInstancedMesh);
+        }
+
+        function initPhysicsData(count) {
+            physicsData = [];
+            physicsInstancedMesh.count = count;
+            for (let i = 0; i < count; i++) {
+                physicsData.push({
+                    pos: new THREE.Vector3((Math.random() - 0.5) * 30, 5 + Math.random() * 30, (Math.random() - 0.5) * 30),
+                    vel: new THREE.Vector3((Math.random() - 0.5) * 8, -Math.random() * 5, (Math.random() - 0.5) * 8),
+                    rot: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI),
+                    rotVel: new THREE.Vector3((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2)
+                });
+            }
+        }
+
+        function updatePhysics(dt) {
+            const matrix = new THREE.Matrix4();
+            const quaternion = new THREE.Quaternion();
+            const scale = new THREE.Vector3(2, 2, 2);
+
+            for (let i = 0; i < physicsInstancedMesh.count; i++) {
+                const d = physicsData[i];
+                d.vel.y -= 15.0 * dt;
+                d.pos.addScaledVector(d.vel, dt);
+
+                d.rot.x += d.rotVel.x;
+                d.rot.y += d.rotVel.y;
+                d.rot.z += d.rotVel.z;
+                quaternion.setFromEuler(d.rot);
+
+                if (d.pos.y < -2.0) {
+                    d.pos.y = -2.0;
+                    d.vel.y *= -0.6;
+                    d.vel.x *= 0.90;
+                    d.vel.z *= 0.90;
+                }
+
+                if (d.pos.x > 18 || d.pos.x < -18) d.vel.x *= -0.8;
+                if (d.pos.z > 18 || d.pos.z < -18) d.vel.z *= -0.8;
+
+                matrix.compose(d.pos, quaternion, scale);
+                physicsInstancedMesh.setMatrixAt(i, matrix);
+            }
+            physicsInstancedMesh.instanceMatrix.needsUpdate = true;
+        }
+
+        function createWorkStage() {
+            const geometry = new THREE.CylinderGeometry(15, 16, 2, 64);
+            const material = new THREE.MeshStandardMaterial({
+                color: 0x111827,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            const stage = new THREE.Mesh(geometry, material);
+            stage.position.y = -3;
+            stage.receiveShadow = true;
+            scene.add(stage);
+        }
+
+        function createJobItemMesh(type = 'pc') {
+            const group = new THREE.Group();
+
+            if (type === 'pc') {
+                // Phase 1
+                // Mini Laptop PC
+                const baseGeo = new THREE.BoxGeometry(1.8, 0.15, 1.2);
+                const pcMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6, metalness: 0.5 });
+                const base = new THREE.Mesh(baseGeo, pcMat);
+                base.position.z = 0.5;
+                group.add(base);
+
+                // Keyboard keys hint (dark pad)
+                const kbGeo = new THREE.BoxGeometry(1.6, 0.16, 0.6);
+                const kbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.9 });
+                const kb = new THREE.Mesh(kbGeo, kbMat);
+                kb.position.z = 0.5;
+                group.add(kb);
+
+                // Monitor
+                const monitorGeo = new THREE.BoxGeometry(1.8, 1.2, 0.1);
+                const monitor = new THREE.Mesh(monitorGeo, pcMat);
+                monitor.position.y = 0.6;
+                monitor.position.z = -0.1;
+                monitor.rotation.x = -0.15; // slightly tilted back
+                group.add(monitor);
+                const screenGeo = new THREE.BoxGeometry(1.6, 1.0, 0.02);
+                const screenMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.6, roughness: 0.2 });
+                const screen = new THREE.Mesh(screenGeo, screenMat);
+                screen.position.z = 0.05;
+                monitor.add(screen);
+            } else if (type === 'gear') {
+                // Phase 2
+                // 金属の歯車
+                const gearGeo = new THREE.CylinderGeometry(1.06, 1.06, 0.42, 48, 3);
+                const gearMat = new THREE.MeshPhysicalMaterial({
+                    color: 0xa5afb9,
+                    metalness: 1.0,
+                    roughness: 0.20,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.07,
+                    reflectivity: 1.0,
+                    emissive: 0x23272f,
+                    emissiveIntensity: 0.01
+                });
+                const gear = new THREE.Mesh(gearGeo, gearMat);
+                gear.castShadow = true;
+                gear.receiveShadow = true;
+                group.add(gear);
+
+                // 外周の細い金属リム。ライトが滑ることで歯車らしい輪郭を強調する。
+                const rimGeo = new THREE.TorusGeometry(1.075, 0.055, 8, 48);
+                const rim = new THREE.Mesh(rimGeo, gearMat);
+                rim.rotation.x = Math.PI / 2;
+                rim.position.y = 0.205;
+                group.add(rim);
+
+                // 中央ハブ
+                const hubGeo = new THREE.CylinderGeometry(0.58, 0.58, 0.5, 32);
+                const hub = new THREE.Mesh(hubGeo, gearMat);
+                group.add(hub);
+
+                const hubRimGeo = new THREE.TorusGeometry(0.58, 0.04, 8, 32);
+                const hubRim = new THREE.Mesh(hubRimGeo, gearMat);
+                hubRim.rotation.x = Math.PI / 2;
+                hubRim.position.y = 0.255;
+                group.add(hubRim);
+
+                // 歯車の中心の穴
+                const holeGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.54, 24);
+                const holeMat = new THREE.MeshPhysicalMaterial({
+                    color: 0x2b333d,
+                    metalness: 1.0,
+                    roughness: 0.16,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.08,
+                    reflectivity: 0.6
+                });
+                const hole = new THREE.Mesh(holeGeo, holeMat);
+                group.add(hole);
+
+                // 12枚の歯。歯専用の少し明るい金属マテリアルで輪郭を読みやすくする。
+                const toothMat = new THREE.MeshPhysicalMaterial({
+                    color: 0x7f848a,
+                    metalness: 1.0,
+                    roughness: 0.15,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.05,
+                    reflectivity: 1.0,
+                    emissive: 0xb3bbc3,
+                    emissiveIntensity: 0.045
+                });
+                const toothShape = new THREE.Shape();
+                const toothInnerR = 1.00;
+                const toothOuterR = 1.42;
+                const toothInnerHalf = 0.16;
+                const toothOuterHalf = 0.10;
+                toothShape.moveTo(toothInnerR, -toothInnerHalf);
+                toothShape.lineTo(toothOuterR, -toothOuterHalf);
+                toothShape.lineTo(toothOuterR + 0.08, 0);
+                toothShape.lineTo(toothOuterR, toothOuterHalf);
+                toothShape.lineTo(toothInnerR, toothInnerHalf);
+                toothShape.closePath();
+
+                const toothGeo = new THREE.ExtrudeGeometry(toothShape, {
+                    depth: 0.44,
+                    bevelEnabled: false,
+                    curveSegments: 1,
+                    steps: 1
+                });
+                // Shapeの押し出し方向(Z)を歯車の厚み(Y)へ回す。
+                toothGeo.rotateX(Math.PI / 2);
+
+                for (let i = 0; i < 20; i++) {
+                    const tooth = new THREE.Mesh(toothGeo, toothMat);
+                    const angle = (i / 20) * Math.PI * 2;
+                    tooth.rotation.y = -angle;
+                    tooth.castShadow = true;
+                    tooth.receiveShadow = true;
+                    group.add(tooth);
+                }
+            } else if (type === 'baton') {
+                // Phase 3: 交通誘導棒
+                // Traffic Guard Baton
+                const batonGeo = new THREE.CylinderGeometry(0.15, 0.15, 2.5, 16);
+                const batonMat = new THREE.MeshStandardMaterial({ color: 0xff3300, emissive: 0xeecc00, emissiveIntensity: 0.2, roughness: 0.9 });
+                const baton = new THREE.Mesh(batonGeo, batonMat);
+
+                const handleGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.8, 16);
+                const handleMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 });
+                const handle = new THREE.Mesh(handleGeo, handleMat);
+                handle.position.y = -1.65;
+
+                group.add(baton);
+                group.add(handle);
+            } else if (type === 'seaweed') {
+                // Phase 4: わかめ (GPU頂点シェーダーでのリアルタイム変形テスト)
+                const geo = new THREE.PlaneGeometry(0.8, 4.0, 5, 32);
+                geo.translate(0, 2.0, 0); // 原点を下端（根元）に移動
+
+                if (!seaweedMaterial) {
+                    seaweedMaterial = new THREE.MeshStandardNodeMaterial({
+                        color: 0x15803d,
+                        roughness: 0.4,
+                        metalness: 0.1,
+                        side: THREE.DoubleSide
+                    });
+
+                    seaweedMaterial.positionNode = Fn(() => {
+                        const p = positionLocal.toVar();
+                        const world = positionWorld;
+
+                        const wavePhase = p.y.mul(1.5)
+                            .add(time.mul(4.0))
+                            .add(world.x.mul(0.5))
+                            .add(world.z.mul(0.5));
+
+                        const amplitude = p.y.mul(0.15);
+                        p.x.addAssign(wavePhase.sin().mul(amplitude));
+                        p.z.addAssign(wavePhase.mul(0.8).cos().mul(amplitude).mul(0.5));
+
+                        const angle = time.mul(1.5)
+                            .add(world.x)
+                            .sin()
+                            .mul(0.2)
+                            .mul(p.y);
+                        const s = angle.sin();
+                        const c = angle.cos();
+                        const x = p.x.toVar();
+                        const z = p.z.toVar();
+
+                        p.x.assign(x.mul(c).sub(z.mul(s)));
+                        p.z.assign(x.mul(s).add(z.mul(c)));
+
+                        return p;
+                    })();
+                }
+                const mesh = new THREE.Mesh(geo, seaweedMaterial);
+                mesh.castShadow = true;
+                group.add(mesh);
+            } else if (type === 'pizza_slice') {
+                // Phase 5
+                // ピザ
+                const sliceGeo = new THREE.CylinderGeometry(1.12, 1.12, 0.21, 16, 1, false, 0, Math.PI / 3);
+                const sliceMat = new THREE.MeshStandardMaterial({ color: 0xcd853f, roughness: 0.8 });
+                const slice = new THREE.Mesh(sliceGeo, sliceMat);
+
+                const cheeseGeo = new THREE.CylinderGeometry(1.05, 1.05, 0.22, 16, 1, false, 0, Math.PI / 3.1);
+                const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.3 });
+                const cheese = new THREE.Mesh(cheeseGeo, cheeseMat);
+
+                const pepperoniGeo = new THREE.CylinderGeometry(0.23, 0.23, 0.05, 16);
+                const pepperoniMat = new THREE.MeshStandardMaterial({ color: 0xb22222, roughness: 0.6 });
+                const pepperoni = new THREE.Mesh(pepperoniGeo, pepperoniMat);
+                const r = 0.65;
+                pepperoni.position.set(Math.cos(Math.PI / 6) * r, 0.13, Math.sin(Math.PI / 6) * r);
+                group.add(slice);
+                group.add(cheese);
+                group.add(pepperoni);
+                group.scale.set(1.4, 1.4, 1.4);
+            } else if (type === 'ramen') {
+                // Phase 6: ラーメン
+                // 1. どんぶり
+                const bowlGeo = new THREE.CylinderGeometry(1.6, 0.8, 1.2, 32, 1, false);
+                const bowlMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.25, side: THREE.DoubleSide });
+                const bowl = new THREE.Mesh(bowlGeo, bowlMat);
+                bowl.position.y = -0.2;
+                bowl.castShadow = true;
+                group.add(bowl);
+
+                // どんぶりの柄
+                const bandGeo = new THREE.CylinderGeometry(1.62, 1.4, 0.2, 32, 1, true);
+                const bandMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.2, side: THREE.DoubleSide });
+                const band = new THREE.Mesh(bandGeo, bandMat);
+                band.position.y = 0.2;
+                group.add(band);
+
+                // 2. スープ
+                const soupGeo = new THREE.SphereGeometry(1.48, 64, 32);
+                const soupMat = new THREE.MeshPhysicalMaterial({
+                    color: 0x8e664c,
+                    roughness: 0.14,
+                    metalness: 0.04,
+                    clearcoat: 0.7,
+                    clearcoatRoughness: 0.08,
+                    transmission: 0.08,
+                    thickness: 0.12,
+                    transparent: true,
+                    opacity: 0.94,
+                    depthWrite: false
+                });
+                const soup = new THREE.Mesh(soupGeo, soupMat);
+                soup.scale.y = 0.2;
+                soup.position.y = 0.4;
+                soup.receiveShadow = true;
+                group.add(soup);
+
+                // 3. 麺
+                const noodleGeo = new THREE.TorusKnotGeometry(0.7, 0.05, 256, 16, 5, 13);
+                const noodleMat = new THREE.MeshStandardMaterial(
+                    {
+                        color: 0xffcc00,
+                        roughness: 0.6,
+                        metalness: 0.01
+                    }
+                );
+                const noodle = new THREE.Mesh(noodleGeo, noodleMat);
+                noodle.position.y = 0.7;
+                noodle.rotation.x = Math.PI / 2;
+                noodle.castShadow = true;
+                group.add(noodle);
+
+                // 4. チャーシュー
+                const porkGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.08, 16);
+                const porkMat = new THREE.MeshStandardMaterial({
+                    color: 0x4e3122,
+                    roughness: 1.0,
+                    metalness: 0.01
+                });
+                const pork1 = new THREE.Mesh(porkGeo, porkMat);
+                pork1.position.set(-0.72, 1.0, 0.42);
+                pork1.rotation.x = 0.1;
+                pork1.rotation.z = -0.1;
+                pork1.castShadow = true;
+                group.add(pork1);
+
+                const pork2 = new THREE.Mesh(porkGeo, porkMat);
+                pork2.position.set(-0.28, 1.0, 0.72);
+                pork2.rotation.x = 0.2;
+                pork2.rotation.y = 0.5;
+                pork2.castShadow = true;
+                group.add(pork2);
+
+                // 5. ナルト
+                const narutoGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.05, 16);
+                const narutoMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    roughness: 0.5
+                });
+
+                // ナルト1つ目
+                const naruto1 = new THREE.Mesh(narutoGeo, narutoMat);
+                naruto1.position.set(0.58, 0.94, -0.28); // 高さを上げ、位置を調整
+                naruto1.rotation.x = 0.22; // よく見えるように角度を立てる
+                naruto1.rotation.z = 0.18;
+                naruto1.castShadow = true;
+
+                // ナルトの渦巻き模様
+                const swirlGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.055, 16);
+                const swirlMat = new THREE.MeshStandardMaterial({ color: 0xff3366 });
+                const swirl1 = new THREE.Mesh(swirlGeo, swirlMat);
+                swirl1.position.set(0, 0, 0);
+                naruto1.add(swirl1);
+                group.add(naruto1);
+
+                // ナルト2つ目
+                const naruto2 = new THREE.Mesh(narutoGeo, narutoMat);
+                naruto2.position.set(0.72, 0.94, 0.28);
+                naruto2.rotation.x = 0.18;
+                naruto2.rotation.z = -0.08;
+                naruto2.castShadow = true;
+
+                const swirl2 = new THREE.Mesh(swirlGeo, swirlMat);
+                swirl2.position.set(0, 0, 0);
+                naruto2.add(swirl2);
+                group.add(naruto2);
+
+                // 6. ネギ
+                const negiGroup = new THREE.Group();
+                const whiteGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.2, 16);
+                const whiteMat = new THREE.MeshStandardMaterial(
+                    { color: 0xf8fafc, roughness: 0.9, metalness: 0.02 }
+                );
+                const whitePart = new THREE.Mesh(whiteGeo, whiteMat);
+                whitePart.castShadow = true;
+                negiGroup.add(whitePart);
+                const greenGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.8, 16);
+                const greenMat = new THREE.MeshStandardMaterial(
+                    { color: 0x4ade80, roughness: 0.9, metalness: 0.005 }
+                );
+                const greenPart = new THREE.Mesh(greenGeo, greenMat);
+                greenPart.position.y = 1.0;
+                greenPart.castShadow = true;
+                negiGroup.add(greenPart);
+                negiGroup.position.set(-0.7, 0.8, -0.6);
+                negiGroup.rotation.x = 0.6;
+                negiGroup.rotation.z = 0.5;
+                group.add(negiGroup);
+
+                // 7. 湯気
+                // 複数の半透明球体を重ねて湯気を表現し、光の散乱（ボリューメトリック効果）と半透明描画の負荷を強調する
+                const steamMat = new THREE.MeshStandardMaterial({
+                    color: 0xfffcf5, // わずかに温かみのある白
+                    transparent: true,
+                    opacity: 0.12,
+                    roughness: 1.0,
+                    depthWrite: false // 半透明オブジェクトの描画順による破綻を防ぐ
+                });
+                const steamGroup = new THREE.Group();
+                for (let i = 0; i < 15; i++) {
+                    const steamGeo = new THREE.SphereGeometry(0.4 + Math.random() * 0.5, 16, 16);
+                    const steam = new THREE.Mesh(steamGeo, steamMat);
+                    steam.position.set(
+                        (Math.random() - 0.5) * 1.8,
+                        Math.random() * 2.5,
+                        (Math.random() - 0.5) * 1.8
+                    );
+                    // アニメーション用の初期パラメータを保持
+                    steam.userData = {
+                        speedY: 0.015 + Math.random() * 0.025,
+                        phaseX: Math.random() * Math.PI * 2,
+                        phaseZ: Math.random() * Math.PI * 2,
+                        baseScale: 1.0 + Math.random() * 0.5
+                    };
+                    steamGroup.add(steam);
+                }
+                group.add(steamGroup);
+                group.userData = { steamGroup: steamGroup };
+
+                // グループ全体のスケール調整（少し小さめにする）
+                group.scale.set(0.8, 0.8, 0.8);
+            } else if (type === 'pants') {
+                // Phase 7
+                const points = [];
+                // 横幅を広げ、高さを抑えることで「縦長感」をなくす
+                for (let i = 0; i <= 30; i++) {
+                    const v = i / 30;
+                    // 上へ広がり続ける(V字)のではなく、上半分は幅を一定にして垂直(直線的)なシルエットにする
+                    const t = Math.min(1.0, v * 1.6); // vが約0.625で最大幅に達し、以降は垂直
+                    const radius = 0.25 + 1.15 * Math.sin(t * (Math.PI / 2));
+                    const height = (v - 0.5) * 1.3;
+                    points.push(new THREE.Vector2(radius, height));
+                }
+                const pantsGeo = new THREE.LatheGeometry(points, 64);
+                const pos = pantsGeo.attributes.position;
+
+                for (let i = 0; i < pos.count; i++) {
+                    const x = pos.getX(i);
+                    const y = pos.getY(i);
+                    const z = pos.getZ(i);
+
+                    const v = (y / 1.3) + 0.5; // 0.0(下) 〜 1.0(上)
+
+                    // Z軸（前後）を潰して平たくする。クロッチは薄く、ウエストは丸く。
+                    const zScale = 0.15 + 0.85 * Math.pow(v, 1.5);
+                    let newZ = z * zScale;
+
+                    // Zの位置（前後）を -1.0(後) 〜 1.0(前) の範囲で正規化して判定
+                    const t = Math.min(1.0, v * 1.6);
+                    const currentRadius = 0.25 + 1.15 * Math.sin(t * (Math.PI / 2));
+                    const normalizedZ = Math.max(-1.0, Math.min(1.0, z / currentRadius));
+
+                    // お尻（後ろ側）の丸みを追加
+                    if (normalizedZ < 0) {
+                        const buttBulge = Math.sin(v * Math.PI) * 0.45 * Math.abs(normalizedZ);
+                        newZ -= buttBulge;
+                    } else {
+                        // 前側（下腹部）も少しふくらみを持たせる
+                        const frontBulge = Math.sin(v * Math.PI) * 0.1 * normalizedZ;
+                        newZ += frontBulge;
+                    }
+
+                    let newY = y;
+                    const absX = Math.abs(x);
+
+                    // X軸（左右）の太もものアーチ（足ぐり）を作る
+                    if (v < 0.8) {
+                        const arch = Math.pow(absX, 2.0) * 0.9;
+                        // 前（Z>0）はハイレグにえぐり、後ろ（Z<0）はえぐりを浅くして面積を増やす
+                        const depth = 0.5 + normalizedZ * 0.7; // 後ろ(z=-1)は -0.2、前(z=1)は 1.2
+                        const finalArch = arch * Math.max(0.1, depth); // 最小でも少しはアーチを作る
+
+                        // えぐりが上部（ウエスト寄り）まで影響しないよう減衰を早め、腰のラインをより直線的に残す
+                        const influence = Math.pow((0.8 - v) / 0.8, 1.8);
+                        newY += finalArch * influence;
+                    }
+
+                    pos.setX(i, x * 1.15); // 全体的にさらに少し横幅を広げてシルエットを整える
+                    pos.setY(i, newY);
+                    pos.setZ(i, newZ);
+                }
+                pantsGeo.computeVertexNormals();
+
+                const glassMat = new THREE.MeshPhysicalMaterial({
+                    color: 0xffffff,   // 白をベース
+                    metalness: 0.15,    // 背景がない環境で輪郭を出すための反射
+                    roughness: 0.15,   // ハイライトを少しぼかす
+                    transmission: 0.82, // ガラスとしての透明感
+                    ior: 1.8,          // 屈折率（ガラス）
+                    clearcoat: 0.7,    // 表面のツルッとした強い反射
+                    clearcoatRoughness: 0.05,
+                    transparent: true,
+                    opacity: 0.62,     // 物質感を底上げ
+                    side: THREE.DoubleSide, // 裏面の屈折も計算して複雑にする
+                    depthWrite: false,
+                    emissive: 0xffeeee,
+                    emissiveIntensity: 0.3,
+                });
+                const pants = new THREE.Mesh(pantsGeo, glassMat);
+
+                // 正面の可愛いリボン装飾（▶︎◀︎型の蝶ネクタイリボン）
+                const ribbonGroup = new THREE.Group();
+                const ribbonMat = new THREE.MeshPhysicalMaterial({
+                    color: 0xffaada,
+                    emissive: 0xff0088,
+                    emissiveIntensity: 0.3,
+                    metalness: 0.1,
+                    roughness: 0.2,
+                    transmission: 0.4,
+                    clearcoat: 0.3,
+                    opacity: 0.99
+                });
+
+                // 左右の羽パーツ (▶︎◀︎型)
+                const wingGeo = new THREE.ConeGeometry(0.15, 0.25, 3);
+
+                const leftWing = new THREE.Mesh(wingGeo, ribbonMat);
+                leftWing.rotation.z = -Math.PI / 2;
+                leftWing.position.set(-0.12, 0, 0);
+                leftWing.scale.set(1, 1, 0.4);
+
+                const rightWing = new THREE.Mesh(wingGeo, ribbonMat);
+                rightWing.rotation.z = Math.PI / 2;
+                rightWing.position.set(0.12, 0, 0);
+                rightWing.scale.set(1, 1, 0.4);
+
+                const knotGeo = new THREE.SphereGeometry(0.06, 16, 16);
+                knotGeo.scale(1, 1.3, 0.8);
+                const knot = new THREE.Mesh(knotGeo, ribbonMat);
+
+                ribbonGroup.add(leftWing);
+                ribbonGroup.add(rightWing);
+                ribbonGroup.add(knot);
+
+                ribbonGroup.position.set(0, 0.55, 1.35); // ウエストの正面中心
+                ribbonGroup.scale.set(1.3, 1.3, 1.3);
+
+                group.add(pants);
+                group.add(ribbonGroup);
+                // group.scale.set(0.9, 0.9, 0.9);
+            } else if (type === 'tessellation') {
+                // Phase 8: 高密度テッセレーション相当 + ディスプレイスメントマッピング
+                // WebGPUには固定機能のOpenGL式tessellation stageを直接使わず、
+                // 高密度メッシュと頂点Node変位でテッセレーション負荷を再現する。
+                if (!tessellationMaterial) {
+                    const texSize = 128;
+                    const colorData = new Uint8Array(texSize * texSize * 4);
+                    const displacementData = new Uint8Array(texSize * texSize * 4);
+
+                    // クッキー生地 + チョコチップのカラーマップ、同時に細かな凹凸のディスプレイスメントマップを生成。
+                    for (let y = 0; y < texSize; y++) {
+                        for (let x = 0; x < texSize; x++) {
+                            const u = (x + 0.5) / texSize;
+                            const v = (y + 0.5) / texSize;
+                            const dx = u - 0.5;
+                            const dy = v - 0.5;
+                            const r2 = dx * dx + dy * dy;
+
+                            let base = 0.58 + 0.10 * Math.sin(u * 43.0) * Math.sin(v * 37.0);
+                            base += 0.04 * Math.sin((u + v) * 97.0);
+
+                            let chip = false;
+                            for (let k = 0; k < 36; k++) {
+                                const a = k * 2.399963 + 0.35;
+                                const rr = 0.08 + (k % 5) * 0.065;
+                                const cx = 0.5 + Math.cos(a) * rr;
+                                const cy = 0.5 + Math.sin(a) * rr;
+                                const cr = 0.018 + (k % 3) * 0.007;
+                                const qx = u - cx;
+                                const qy = v - cy;
+                                if (qx * qx + qy * qy < cr * cr && r2 < 0.245) {
+                                    chip = true;
+                                    break;
+                                }
+                            }
+
+                            if (chip) {
+                                colorData[(y * texSize + x) * 4 + 0] = 48;
+                                colorData[(y * texSize + x) * 4 + 1] = 20;
+                                colorData[(y * texSize + x) * 4 + 2] = 12;
+                            } else {
+                                const edge = Math.max(0.0, Math.min(1.0, 1.0 - Math.max(0, r2 - 0.15) * 3.0));
+                                colorData[(y * texSize + x) * 4 + 0] = Math.round(180 + base * 35 * edge);
+                                colorData[(y * texSize + x) * 4 + 1] = Math.round(105 + base * 32 * edge);
+                                colorData[(y * texSize + x) * 4 + 2] = Math.round(48 + base * 20 * edge);
+                            }
+                            colorData[(y * texSize + x) * 4 + 3] = 255;
+
+                            const crumb =
+                                Math.sin(u * 71.0 + v * 31.0) * 0.5 +
+                                Math.sin(u * 127.0 - v * 53.0) * 0.3 +
+                                Math.cos((u + v) * 211.0) * 0.2;
+                            const chipDip = chip ? -0.22 : 0.0;
+                            const height = Math.max(0, Math.min(255, Math.round(128 + crumb * 24 + chipDip * 90)));
+                            displacementData[(y * texSize + x) * 4 + 0] = height;
+                            displacementData[(y * texSize + x) * 4 + 1] = height;
+                            displacementData[(y * texSize + x) * 4 + 2] = height;
+                            displacementData[(y * texSize + x) * 4 + 3] = 255;
+                        }
+                    }
+
+                    tessellationColorTexture = new THREE.DataTexture(
+                        colorData, texSize, texSize, THREE.RGBAFormat, THREE.UnsignedByteType
+                    );
+                    tessellationColorTexture.wrapS = THREE.RepeatWrapping;
+                    tessellationColorTexture.wrapT = THREE.ClampToEdgeWrapping;
+                    tessellationColorTexture.magFilter = THREE.LinearFilter;
+                    tessellationColorTexture.minFilter = THREE.LinearFilter;
+                    tessellationColorTexture.colorSpace = THREE.SRGBColorSpace;
+                    tessellationColorTexture.needsUpdate = true;
+
+                    tessellationDisplacementTexture = new THREE.DataTexture(
+                        displacementData, texSize, texSize, THREE.RGBAFormat, THREE.UnsignedByteType
+                    );
+                    tessellationDisplacementTexture.wrapS = THREE.RepeatWrapping;
+                    tessellationDisplacementTexture.wrapT = THREE.ClampToEdgeWrapping;
+                    tessellationDisplacementTexture.magFilter = THREE.LinearFilter;
+                    tessellationDisplacementTexture.minFilter = THREE.LinearFilter;
+                    tessellationDisplacementTexture.needsUpdate = true;
+
+                    tessellationMaterial = new THREE.MeshStandardNodeMaterial({
+                        color: 0xffffff,
+                        roughness: 0.72,
+                        metalness: 0.0
+                    });
+
+                    // 高密度メッシュ上で毎頂点のディスプレイスメントマップ参照を発生させる。
+                    const displacementMap = TSL.texture(tessellationDisplacementTexture, TSL.uv()).r;
+                    const mappedHeight = displacementMap.sub(0.5).mul(0.55);
+                    const animatedDetail = sin(positionLocal.x.mul(14.0).add(time.mul(1.8)))
+                        .mul(cos(positionLocal.z.mul(17.0).sub(time.mul(1.2))))
+                        .mul(0.025);
+                    tessellationMaterial.positionNode = positionLocal
+                        .add(normalLocal.mul(mappedHeight.add(animatedDetail)));
+                    tessellationMaterial.colorNode = TSL.texture(tessellationColorTexture, TSL.uv()).rgb;
+                }
+
+                // 128x64の高密度球を薄くして、チョコチップクッキー形状にする。
+                // 頂点数を意図的に増やし、Phase 8のジオメトリ処理負荷を確保する。
+                const geo = new THREE.SphereGeometry(1.45, 128, 64);
+                geo.scale(1.0, 0.22, 1.0);
+                const mesh = new THREE.Mesh(geo, tessellationMaterial);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                group.add(mesh);
+            } else if (type === 'postprocess') {
+                // Phase 10: 風景 (Bloom, SSAO, SSR, Lens 収差テスト用)
+
+                // 1. ベースの地面とSSR用の水たまり
+                const groundGroup = new THREE.Group();
+                // ジオラマ土台
+                const groundSideGeo = new THREE.CylinderGeometry(3.5, 3.5, 0.2, 64, 1, true);
+                const groundTopGeo = new THREE.CircleGeometry(3.5, 64);
+                // SSAOとSSRを同時にテストするため、暗めで反射のある地面
+                const groundMat = new THREE.MeshStandardMaterial({
+                    color: 0x114411,
+                    roughness: 0.4,
+                    metalness: 0.1,
+                    side: THREE.FrontSide
+                });
+
+                const ground = new THREE.Mesh(groundSideGeo, groundMat);
+                ground.position.y = -0.1;
+                ground.receiveShadow = true;
+                groundGroup.add(ground);
+
+                const groundTop = new THREE.Mesh(groundTopGeo, groundMat);
+                groundTop.rotation.x = -Math.PI / 2;
+                groundTop.position.y = 0.0;
+                groundTop.receiveShadow = true;
+                groundGroup.add(groundTop);
+
+                // SSR(画面空間反射)を強調するための「水たまり」 (反射率を極端に高くする)
+                const puddleGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.22, 32);
+                const puddleMat = new THREE.MeshStandardMaterial({
+                    color: 0x000000,
+                    roughness: 0.05,
+                    metalness: 0.9,
+                    envMapIntensity: 2.0 // 周囲を反射
+                });
+                const puddle = new THREE.Mesh(puddleGeo, puddleMat);
+                puddle.position.set(0.8, -0.1, 1.0); // 前方に配置
+                puddle.scale.set(1, 1, 0.6); // 楕円形に
+                groundGroup.add(puddle);
+                group.add(groundGroup);
+
+                // 2. SSAO(環境遮蔽)の影を強調するための、板が重なった赤い屋根の犬小屋
+                const houseGroup = new THREE.Group();
+
+                // 壁
+                const wallGeo = new THREE.BoxGeometry(1.4, 1.2, 1.6);
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0.0 });
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.y = 0.6;
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                houseGroup.add(wall);
+
+                // 入り口 (黒い穴)
+                const doorGeo = new THREE.BoxGeometry(0.6, 0.8, 0.1);
+                const doorMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1.0 });
+                const door = new THREE.Mesh(doorGeo, doorMat);
+                door.position.set(0, 0.4, 0.81);
+                houseGroup.add(door);
+
+                // Bloom(発光の滲み)を引き出すため、入り口の奥から漏れる謎の強い光
+                const innerLightGeo = new THREE.PlaneGeometry(0.5, 0.7);
+                const innerLightMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: 0x00eaff, // シアンの強い光
+                    emissiveIntensity: 5.0
+                });
+                const innerLight = new THREE.Mesh(innerLightGeo, innerLightMat);
+                innerLight.position.set(0, 0.4, 0.815);
+                houseGroup.add(innerLight);
+
+                // 切妻屋根（板の重なりでSSAOを強調）
+                const roofGroup = new THREE.Group();
+                const roofMat = new THREE.MeshStandardMaterial({ color: 0xdd1111, roughness: 0.7 });
+
+                // 屋根の板を重ねて配置
+                const boardGeo = new THREE.BoxGeometry(1.7, 0.1, 0.4);
+                for (let i = 0; i < 6; i++) {
+                    // 左側の屋根板
+                    const boardL = new THREE.Mesh(boardGeo, roofMat);
+                    boardL.rotation.z = Math.PI / 4;
+                    // Yを少しずつ下げ、Xを広げることで段差を作る
+                    boardL.position.set(-0.35 - (i * 0.08), 1.6 - (i * 0.08), 0);
+                    boardL.rotation.x = 0;
+                    boardL.scale.set(1, 1, 4.8); // 奥行きを伸ばす
+                    boardL.castShadow = true;
+                    boardL.receiveShadow = true;
+                    roofGroup.add(boardL);
+
+                    // 右側の屋根板
+                    const boardR = new THREE.Mesh(boardGeo, roofMat);
+                    boardR.rotation.z = -Math.PI / 4;
+                    boardR.position.set(0.35 + (i * 0.08), 1.6 - (i * 0.08), 0);
+                    boardR.scale.set(1, 1, 4.8);
+                    boardR.castShadow = true;
+                    boardR.receiveShadow = true;
+                    roofGroup.add(boardR);
+                }
+
+                // 頂点の棟木
+                const ridgeGeo = new THREE.BoxGeometry(0.2, 0.2, 2.0);
+                const ridge = new THREE.Mesh(ridgeGeo, roofMat);
+                ridge.position.set(0, 1.68, 0);
+                roofGroup.add(ridge);
+
+                houseGroup.add(roofGroup);
+
+                houseGroup.scale.set(0.5, 0.5, 0.5);
+                houseGroup.position.set(0, 0, -0.2);
+                group.add(houseGroup);
+
+                // 3. 赤い水皿 (SSRテストのアクセント)
+                const bowlGroup = new THREE.Group();
+                const bowlGeo = new THREE.CylinderGeometry(0.4, 0.3, 0.25, 32);
+                const bowlMat = new THREE.MeshStandardMaterial({ color: 0xee0000, roughness: 0.3 });
+                const bowl = new THREE.Mesh(bowlGeo, bowlMat);
+                bowl.position.y = 0.125;
+                bowl.castShadow = true;
+                bowlGroup.add(bowl);
+
+                // 水皿の中の水 (強く光らせてBloomとSSRを複合)
+                const waterGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.26, 32);
+                const waterMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: 0xff0055, // マゼンタ発光
+                    emissiveIntensity: 4.0
+                });
+                const water = new THREE.Mesh(waterGeo, waterMat);
+                water.position.y = 0.125;
+                bowlGroup.add(water);
+
+                bowlGroup.position.set(-1.2, 0, 1.2);
+                group.add(bowlGroup);
+
+                // 4. Lens(色収差/RGBズレ)を画面端で分かりやすくするための、横に広がる樹木と発光果実
+                const treeGroup = new THREE.Group();
+
+                // 幹
+                const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 1.5, 8);
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3b2c, roughness: 1.0 });
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = 0.75;
+                trunk.castShadow = true;
+                treeGroup.add(trunk);
+
+                // 葉の集合（SSAO強調のため多くの球を重ねる）
+                const leafMat = new THREE.MeshStandardMaterial({ color: 0x228b22, roughness: 0.9 });
+                const leafGeo = new THREE.IcosahedronGeometry(0.6, 1);
+                const leafPositions = [
+                    [0, 1.8, 0], [0.5, 1.5, 0.4], [-0.6, 1.4, 0.2],
+                    [0.3, 1.6, -0.5], [-0.4, 1.7, -0.4], [0.8, 1.2, 0], [-0.8, 1.1, 0]
+                ];
+                leafPositions.forEach(pos => {
+                    const leaf = new THREE.Mesh(leafGeo, leafMat);
+                    leaf.position.set(pos[0], pos[1], pos[2]);
+                    leaf.castShadow = true;
+                    treeGroup.add(leaf);
+                });
+
+                // 枝の先に垂れ下がる強烈な発光果実（Lens収差テスト用に画面外側へ配置）
+                const fruitGeo = new THREE.OctahedronGeometry(0.2, 1);
+
+                const fruit1Mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x9d00ff, emissiveIntensity: 6.0 });
+                const fruit1 = new THREE.Mesh(fruitGeo, fruit1Mat);
+                fruit1.position.set(1.2, 1.0, 0.5);
+                treeGroup.add(fruit1);
+
+                const fruit2Mat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffdd00, emissiveIntensity: 6.0 });
+                const fruit2 = new THREE.Mesh(fruitGeo, fruit2Mat);
+                fruit2.position.set(-1.3, 0.8, -0.5);
+                treeGroup.add(fruit2);
+
+                treeGroup.position.set(1.5, 0, -1.2);
+                group.add(treeGroup);
+
+                // 小さな草(SSAO用)を地面に散らす
+                const grassGeo = new THREE.ConeGeometry(0.05, 0.3, 4);
+                const grassMat = new THREE.MeshStandardMaterial({ color: 0x32cd32, roughness: 1.0 });
+                for (let i = 0; i < 30; i++) {
+                    const grass = new THREE.Mesh(grassGeo, grassMat);
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 1.0 + Math.random() * 2.0;
+                    grass.position.set(Math.cos(angle) * r, 0.15, Math.sin(angle) * r);
+                    grass.rotation.x = (Math.random() - 0.5) * 0.5;
+                    grass.rotation.z = (Math.random() - 0.5) * 0.5;
+                    grass.castShadow = true;
+                    groundGroup.add(grass);
+                }
+
+                group.scale.set(1.0, 1.0, 1.0);
+            } else if (type === 'dreamcast') {
+                // --- Phase 11: ドリームキャスト風のオブジェクト作成 ---
+                // 上面の渦巻きテクスチャをCanvasで生成 (解像度を上げて高精細に)
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const ctx = canvas.getContext('2d');
+
+                // 背景を白に
+                ctx.fillStyle = '#f8fafc';
+                ctx.fillRect(0, 0, 512, 512);
+
+                // 渦巻きの設定
+                ctx.strokeStyle = '#ff4006'; // オレンジ色
+                ctx.lineWidth = 24;          // 線を太くしてロゴの存在感を出す
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                const centerX = 256;
+                const centerY = 256;
+
+                // アルキメデスの螺旋を描画（巻き数を減らしてドリームキャスト風に）
+                const maxAngle = 3.5 * 2 * Math.PI; // 約3.5回転
+                const radiusStep = 180 / maxAngle;  // 最大半径を180にして余白を確保
+
+                for (let angle = 0; angle <= maxAngle; angle += 0.1) {
+                    const radius = radiusStep * angle;
+                    // -Math.PI / 2 を足して上側から巻き始める
+                    const x = centerX + radius * Math.cos(angle - Math.PI / 2);
+                    const y = centerY + radius * Math.sin(angle - Math.PI / 2);
+                    if (angle === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+
+                const spiralTexture = new THREE.CanvasTexture(canvas);
+                if (renderer) spiralTexture.anisotropy = renderer.getMaxAnisotropy();
+
+                // 1. メインボディ (平べったい白い四角)
+                const bodyGeo = new THREE.BoxGeometry(1.5, 0.4, 1.5);
+                const baseMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.8 });
+                const topMat = new THREE.MeshStandardMaterial({ map: spiralTexture, roughness: 0.8 });
+
+                // マテリアルを面ごとに指定 (右, 左, 上, 下, 前, 後)
+                const materials = [baseMat, baseMat, topMat, baseMat, baseMat, baseMat];
+                const body = new THREE.Mesh(bodyGeo, materials);
+                group.add(body);
+
+                // 前面のコントローラーポート (4つ)
+                for (let i = 0; i < 4; i++) {
+                    const portGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.04, 16);
+                    const portMat = new THREE.MeshStandardMaterial({ color: 0x3f3f3f, roughness: 0.8 });
+                    const portMesh = new THREE.Mesh(portGeo, portMat);
+
+                    // 円柱の底面が正面（Z軸方向）を向くように90度回転させる
+                    portMesh.rotation.x = Math.PI / 2;
+
+                    // 配置位置
+                    portMesh.position.set(-0.285 + i * 0.19, -0.05, 0.76);
+                    group.add(portMesh);
+                }
+
+                // 3. オレンジの電源ランプ（立体的なドーム状に変更して埋没を防ぐ）
+                const ledGeo = new THREE.SphereGeometry(0.04, 16, 16);
+                const ledMat = new THREE.MeshStandardMaterial({
+                    color: 0xf97316,
+                    emissive: 0xf97316,
+                    emissiveIntensity: 1.5
+                });
+                const led = new THREE.Mesh(ledGeo, ledMat);
+                led.position.set(0, 0.2, 0.5); // 上面の少し前の方に配置
+                led.scale.set(1, 0.5, 1);      // Y方向に潰して半球（ドーム）っぽくする
+                group.add(led);
+
+                // AI超解像の結果を表示するホログラム
+                if (aiTexture) {
+                    // CD風の円形ホログラム (内径0.15、外径0.6、円の分割数32)
+                    const screenGeo = new THREE.RingGeometry(0.15, 0.6, 32);
+                    const screenMat = new THREE.MeshBasicMaterial({
+                        map: aiTexture,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.9,
+                        blending: THREE.AdditiveBlending
+                    });
+                    const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+                    // 本体の少し上にホログラムのように浮かせる
+                    screenMesh.position.set(0, 1.0, 0);
+                    group.add(screenMesh);
+
+                    // スクリーンのサイバーな枠線
+                    const frameGeo = new THREE.EdgesGeometry(screenGeo);
+                    const frameMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+                    const frameMesh = new THREE.LineSegments(frameGeo, frameMat);
+                    screenMesh.add(frameMesh);
+                }
+
+                group.scale.set(1.2, 1.2, 1.2);
+            }
+            return group;
+        }
+
+        function createGuardLightParticles(count) {
+            // Phase 3
+            const pGeo = new THREE.SphereGeometry(0.22, 8, 6);
+            const pMat = new THREE.MeshBasicMaterial({
+                color: 0xffa000,
+                transparent: true,
+                opacity: 0.22,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const mesh = new THREE.InstancedMesh(pGeo, pMat, count);
+            const matrix = new THREE.Matrix4();
+            const pos = new THREE.Vector3();
+
+            for (let i = 0; i < count; i++) {
+                pos.set(
+                    (Math.random() - 0.5) * 50,
+                    (Math.random() - 0.5) * 50,
+                    (Math.random() - 0.5) * 50
+                );
+
+                const s = 0.7 + Math.random() * 0.1;
+                matrix.makeScale(s, s, s);
+                matrix.setPosition(pos);
+                mesh.setMatrixAt(i, matrix);
+            }
+
+            mesh.instanceMatrix.needsUpdate = true;
+            mesh.visible = false;
+            guardParticles = mesh;
+            scene.add(guardParticles);
+        }
+
+        function createHallucinationMesh() {
+            const geo = new THREE.TorusKnotGeometry(3.5, 1.2, 150, 32);
+            const mat = new THREE.MeshNormalMaterial({ wireframe: true, transparent: true, opacity: 0.8 });
+            hallucinationMesh = new THREE.Mesh(geo, mat);
+            hallucinationMesh.position.set(0, 3, 0);
+            hallucinationMesh.visible = false;
+            hallucinationMesh.userData.originalPositions = geo.attributes.position.clone();
+            scene.add(hallucinationMesh);
+        }
+
+        function createMegaPizza() {
+            const group = new THREE.Group();
+            const crustGeo = new THREE.CylinderGeometry(8, 8, 0.5, 64);
+            const crustMat = new THREE.MeshStandardMaterial({ color: 0xcd853f, roughness: 0.9, });
+            const crust = new THREE.Mesh(crustGeo, crustMat);
+            group.add(crust);
+            group.scale.set(1.4, 1.4, 1.4);
+            const cheeseGeo = new THREE.CylinderGeometry(7.5, 7.5, 0.6, 64);
+            const cheeseMat = new THREE.MeshStandardMaterial({ color: 0xffd700, transparent: true, opacity: 0.85, roughness: 0.2, metalness: 0.1 });
+            const cheese = new THREE.Mesh(cheeseGeo, cheeseMat);
+            cheese.position.y = 0.05;
+            group.add(cheese);
+
+            const pepperoniMat = new THREE.MeshStandardMaterial({ color: 0xb22222, roughness: 0.7 });
+            const toppingGroup = new THREE.Group();
+
+            for (let i = 0; i < 25; i++) {
+                const pepGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16);
+                const pep = new THREE.Mesh(pepGeo, pepperoniMat);
+
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 6.5;
+
+                pep.position.set(Math.cos(angle) * radius, 0.35, Math.sin(angle) * radius);
+                pep.rotation.x = (Math.random() - 0.5) * 0.1;
+                pep.rotation.z = (Math.random() - 0.5) * 0.1;
+
+                toppingGroup.add(pep);
+            }
+            group.add(toppingGroup);
+
+            const steamMat = new THREE.MeshStandardMaterial({ color: 0xfffbeb, transparent: true, opacity: 0.15, roughness: 1.0, depthWrite: false });
+            const steamGroup = new THREE.Group();
+
+            for (let i = 0; i < 40; i++) {
+                const steamGeo = new THREE.SphereGeometry(1.0 + Math.random() * 1.0, 16, 16);
+                const steam = new THREE.Mesh(steamGeo, steamMat);
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 7;
+                steam.position.set(Math.cos(angle) * radius, Math.random() * 3, Math.sin(angle) * radius);
+                steamGroup.add(steam);
+            }
+            group.add(steamGroup);
+
+            group.position.set(0, 1, 0);
+            group.rotation.x = Math.PI / 8;
+            group.scale.set(1.4, 1.4, 1.4);
+            group.visible = false;
+
+            group.userData = { steamGroup };
+
+            megaPizzaMesh = group;
+            scene.add(megaPizzaMesh);
+        }
+
+        function spawnJobObjectsCluster(amount, type) {
+            jobObjectsGroup.forEach(s => scene.remove(s));
+            jobObjectsGroup = [];
+            currentSpawnedType = type;
+
+            if (physicsInstancedMesh) physicsInstancedMesh.visible = false;
+
+            if (type === 'physics') {
+                physicsInstancedMesh.visible = true;
+                let count = Math.min(amount, 20000);
+                initPhysicsData(count);
+                return;
+            } else if (type === 'all') {
+                physicsInstancedMesh.visible = true;
+                let physCount = Math.floor(amount * 0.5);
+                let normalAmount = amount - physCount;
+                initPhysicsData(Math.min(physCount, 20000));
+
+                const types = ['pc', 'gear', 'baton', 'seaweed', 'pizza_slice', 'pants', 'ramen', 'tessellation', 'postprocess', 'dreamcast'];
+                for (let i = 0; i < normalAmount; i++) {
+                    const t = types[i % types.length];
+                    const item = createJobItemMesh(t);
+                    const angle = (i / normalAmount) * Math.PI * 12;
+                    const radius = 5 + (i / normalAmount) * 16;
+                    item.position.x = Math.cos(angle) * radius;
+                    item.position.z = Math.sin(angle) * radius;
+                    item.position.y = (Math.random() - 0.5) * 10;
+                    item.rotation.y = Math.random() * Math.PI;
+                    item.rotation.x = Math.random() * 0.5;
+                    scene.add(item);
+                    jobObjectsGroup.push(item);
+                }
+                return;
+            }
+
+            for (let i = 0; i < amount; i++) {
+                const item = createJobItemMesh(type);
+
+                const angle = (i / amount) * Math.PI * 12;
+                const radius = 5 + (i / amount) * 16;
+
+                item.position.x = Math.cos(angle) * radius;
+                item.position.z = Math.sin(angle) * radius;
+                item.position.y = (Math.random() - 0.5) * 10;
+
+                item.rotation.y = Math.random() * Math.PI;
+                item.rotation.x = Math.random() * 0.5;
+
+                scene.add(item);
+                jobObjectsGroup.push(item);
+            }
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- Benchmark Lifecycle ---
+        async function startBenchmark() {
+            const btnStart = document.getElementById('btn-start-benchmark');
+            const originalBtnHtml = btnStart.innerHTML;
+
+            btnStart.disabled = true;
+            btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+
+            if (!espcnSession) {
+                btnStart.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>AIモデル準備中...</span>';
+                await preloadONNXModel();
+            }
+
+            btnStart.innerHTML = originalBtnHtml;
+
+            const presetSelect = document.getElementById('setting-preset');
+            const preset = presetSelect.value;
+
+            if (preset === 'light') presetMultiplier = 0.5;
+            else if (preset === 'normal') presetMultiplier = 1.0;
+            else if (preset === 'heavy') presetMultiplier = 4.0;
+            else if (preset === 'extreme') presetMultiplier = 8.0;
+
+            if (guardParticles) {
+                guardParticles.count = 50000 * presetMultiplier;
+                guardParticles.visible = false;
+            }
+
+            isBenchmarking = true;
+            benchStartTime = performance.now();
+            fpsHistory = [];
+            minFps = 999;
+            maxFps = 0;
+            totalScores = 0;
+            totalRenderedFrames = 0;
+            totalShifts = 0;
+            phaseScores = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+            lastEarnedFiveThousand = 0;
+            currentAaIndex = 0;
+            document.getElementById('notice-box').classList.add('hidden')
+            const aaBox = document.getElementById('aa-box');
+            if (aaBox) aaBox.classList.remove('hidden');
+            const aaDisplay = document.getElementById('aa-display');
+            if (aaDisplay) aaDisplay.textContent = asciiArts['pc'][0];
+
+            const detailsList = document.getElementById('phase-details-list');
+            const toggleIcon = document.getElementById('icon-toggle-details');
+            const toggleText = document.getElementById('text-toggle-details');
+            if (detailsList) detailsList.classList.add('hidden');
+            if (toggleIcon) {
+                toggleIcon.classList.remove('fa-chevron-up');
+                toggleIcon.classList.add('fa-chevron-down');
+            }
+            if (toggleText) toggleText.textContent = '詳細データを見る';
+
+            document.getElementById('benchmark-hud').classList.remove('hidden');
+            document.getElementById('gpu-info-box').classList.add('hidden');
+            document.getElementById('result-modal').classList.add('hidden');
+
+            showToast('ベンチマーク開始！');
+        }
+
+        function endBenchmark() {
+            try {
+                isBenchmarking = false;
+
+                jobObjectsGroup.forEach(s => scene.remove(s));
+                jobObjectsGroup = [];
+                if (guardParticles) guardParticles.visible = false;
+                if (hallucinationMesh) hallucinationMesh.visible = false;
+                if (megaPizzaMesh) megaPizzaMesh.visible = false;
+                dynamicLights.forEach(l => l.intensity = 0);
+
+                const aaBox = document.getElementById('aa-box');
+                if (aaBox) aaBox.classList.add('hidden');
+
+                const hud = document.getElementById('benchmark-hud');
+                if (hud) hud.classList.add('hidden');
+
+                const gpuBox = document.getElementById('gpu-info-box');
+                if (gpuBox) gpuBox.classList.add('hidden');
+
+                const btnStart = document.getElementById('btn-start-benchmark');
+                if (btnStart) {
+                    btnStart.disabled = false;
+                    btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+
+                const avgFps = fpsHistory.length > 0 ? Math.round(fpsHistory.reduce((a, b) => a + b, 0) / fpsHistory.length) : 60;
+                const finalMinFps = minFps === 999 ? avgFps : minFps;
+                const finalScores = Math.round(totalScores || 0);
+                // FPSをベースに最終スコアを計算 (平均FPSによる補正と、最低FPSの安定性ボーナスを加味)
+                const gpuScore = Math.round((finalScores * (avgFps / 60)) + (finalMinFps * 100000));
+
+                const avgFpsEl = document.getElementById('result-avg-fps');
+                if (avgFpsEl) avgFpsEl.textContent = avgFps;
+
+                const minFpsEl = document.getElementById('result-min-fps');
+                if (minFpsEl) minFpsEl.textContent = finalMinFps;
+
+                const maxFpsEl = document.getElementById('result-max-fps');
+                if (maxFpsEl) maxFpsEl.textContent = maxFps === 0 ? avgFps : maxFps;
+
+                const totalFramesEl = document.getElementById('result-total-frames');
+                if (totalFramesEl) totalFramesEl.textContent = totalRenderedFrames.toLocaleString();
+
+                const fpsStabilityEl = document.getElementById('result-fps-bonus');
+                if (fpsStabilityEl) {
+                    let fpsBonus = gpuScore - finalScores;
+                    fpsStabilityEl.textContent = fpsBonus.toLocaleString();
+                }
+
+
+                const scoreCount = document.getElementById('result-score-count');
+                if (scoreCount) scoreCount.textContent = `${gpuScore.toLocaleString()}`;
+
+                const resolutionEl = document.getElementById('result-resolution');
+                if (resolutionEl) {
+                    const pr = Math.min(window.devicePixelRatio, 2);
+                    const w = Math.round(window.innerWidth * pr);
+                    const h = Math.round(window.innerHeight * pr);
+                    resolutionEl.textContent = `${w} x ${h}`;
+                }
+
+                for (let i = 0; i < phaseScores.length; i++) {
+                    const scoreEl = document.getElementById(`score-phase-${i + 1}`);
+                    if (scoreEl) {
+                        scoreEl.textContent = `${Math.round(phaseScores[i]).toLocaleString()}`;
+                    }
+                }
+
+                const presetSelect = document.getElementById('setting-preset');
+                const preset = presetSelect ? presetSelect.value : 'normal';
+                const rank = calculateRank(gpuScore);
+
+                const presetBadge = document.getElementById('result-executed-preset-badge');
+                if (presetBadge) presetBadge.textContent = `設定: ${getPresetName(preset)}`;
+
+                document.getElementById('result-gpu-name').textContent = document.getElementById('gpu-name-display').textContent.trim();
+                document.getElementById('result-screen-resolution').textContent = document.getElementById('result-resolution').textContent.trim();
+
+                // OS名の表示
+                const osInfo = getOSInfo()
+                document.getElementById('result-os').textContent = osInfo;
+
+                // OSのアイコン周りの処理
+                const osIconEl = document.getElementById('os-icon');
+                if (!osIconEl) throw new Error('Result OS icon element (#os-icon) was not found.');
+                osIconEl.className = "fa-brands text-emerald-300/70"; // アイコンのクラスを一旦クリア
+                if (/Windows/.test(osInfo)) {
+                    osIconEl.classList.add("fa-windows");
+                } else if (/Android/.test(osInfo)) {
+                    osIconEl.classList.add("fa-android");
+                } else if (/FreeBSD/.test(osInfo)) {
+                    osIconEl.classList.add("fa-freebsd");
+                } else if (/Linux/.test(osInfo)) {
+                    osIconEl.classList.add("fa-linux");
+                } else if (/iOS|iPadOS|macOS/.test(osInfo)) {
+                    osIconEl.classList.add("fa-apple");
+                } else {
+                    osIconEl.classList.replace("fa-brands", "fa-solid");
+                    osIconEl.classList.add("fa-laptop");
+                }
+
+                const rankTitle = document.getElementById('result-rank-title');
+                if (rankTitle) rankTitle.textContent = rank.title;
+                const rankDesc = document.getElementById('result-rank-desc');
+                if (rankDesc) rankDesc.textContent = rank.desc;
+
+                const modalPreset = document.getElementById('setting-preset-modal');
+                const footerPreset = document.getElementById('setting-preset');
+                if (modalPreset && footerPreset) {
+                    modalPreset.value = footerPreset.value;
+                }
+
+                const modal = document.getElementById('result-modal');
+                if (modal) modal.classList.remove('hidden');
+
+                // Twitter ボタン
+                const text = getResult();
+                let button = document.getElementById('twitter-post');
+                let url = 'https://x.com/intent/tweet?text=' + encodeURIComponent(text);
+                button.setAttribute('href', url);
+
+            } catch (error) {
+                console.error("ベンチマーク終了処理中にエラーが発生しました:", error);
+                isBenchmarking = false;
+                document.getElementById('benchmark-hud')?.classList.add('hidden');
+                document.getElementById('result-modal')?.classList.remove('hidden');
+                document.getElementById('btn-start-benchmark')?.classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('btn-start-benchmark').disabled = false;
+            }
+        }
+
+        function calculateRank(score) {
+            const rank1 = 8000000;
+            const rank2 = 6000000;
+            const rank3 = 5000000;
+            const rank4 = 4000000;
+            const rank5 = 3000000;
+            const rank6 = 2000000;
+            const rank7 = 1500000;
+
+            if (score > rank1) {
+                return { title: "キチガイ", desc: "規格外(;´Д`)" };
+            } else if (score > rank2) {
+                return { title: "ウルトラハイエンド", desc: "スーパーハイスペックマシンヽ(´ー｀)ノ" };
+            } else if (score > rank3) {
+                return { title: "ハイエンド", desc: "快適ヽ(´ー｀)ノ" };
+            } else if (score > rank4) {
+                return { title: "アッパーミドル", desc: "やや快適(´ー｀)" };
+            } else if (score > rank5) {
+                return { title: "ミドルレンジ", desc: "普通(´ー｀)" };
+            } else if (score > rank6) {
+                return { title: "コスパモデル", desc: "負荷設定変更推奨(;´Д`)" };
+            } else if (score > rank7) {
+                return { title: "ローエンド", desc: "動作困難(;´Д`)" };
+            } else {
+                return { title: "ポンコツ", desc: "全く向いてない(;´Д`)" };
+            }
+        }
+
+        function getPresetName(preset) {
+            if (preset === 'light') return '軽量';
+            if (preset === 'normal') return '標準';
+            if (preset === 'heavy') return '激重';
+            if (preset === 'extreme') return '過労死ブラック';
+            return '(;´Д`)';
+        }
+
+        // --- Render Loop ---
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            frameCount++;
+            if (time - lastTime >= 500) {
+                fps = Math.round((frameCount * 1000) / (time - lastTime));
+                frameCount = 0;
+                lastTime = time;
+
+                if (isBenchmarking) {
+                    fpsHistory.push(fps);
+                    if (fps < minFps) minFps = fps;
+                    if (fps > maxFps) maxFps = fps;
+                }
+            }
+
+            const clock = time * 0.001;
+            let currentPhaseIndex = 0;
+
+            if (isBenchmarking) {
+                totalRenderedFrames++;
+                const elapsed = (time - benchStartTime) / 1000;
+                const remaining = Math.max(0, Math.ceil(BENCH_DURATION - elapsed));
+                const progress = Math.min(100, (elapsed / BENCH_DURATION) * 100);
+
+                document.getElementById('hud-fps').textContent = fps;
+                document.getElementById('hud-min-fps').textContent = minFps === 999 ? fps : minFps;
+                document.getElementById('hud-timer').textContent = `${remaining}s`;
+                document.getElementById('hud-progress-bar').style.width = `${progress}%`;
+
+                const phaseBadge = document.getElementById('phase-badge');
+                let targetObjectsCount = 50;
+                let targetObjectType = 'pc';
+
+                guardParticles.visible = false;
+                hallucinationMesh.visible = false;
+                megaPizzaMesh.visible = false;
+                dynamicLights.forEach(l => l.intensity = 0); // 毎フレーム一旦リセットする
+
+                if (elapsed < 5) {
+                    // Phase 1: ノートパソコン
+                    currentPhaseIndex = 0;
+                    phaseBadge.innerHTML = "フェーズ1: 基本ドローコール＆ポリゴン描画";
+                    targetObjectsCount = Math.floor(300 * presetMultiplier);
+                    targetObjectType = 'pc';
+                } else if (elapsed < 10) {
+                    // Phase 2: 歯車
+                    currentPhaseIndex = 1;
+                    phaseBadge.innerHTML = "フェーズ2: 動的ライティング＆金属マテリアル描画";
+                    targetObjectsCount = Math.floor(100 * presetMultiplier);
+                    targetObjectType = 'gear';
+
+                    gearFillLights.forEach(light => { light.intensity = light.userData.baseIntensity * Math.min(2.75, presetMultiplier); });
+
+                    // 金属の反射が動的ライトの当たらない面でも確認できるよう、Phase 2だけ環境光を少し強める
+                    if (ambientLight) {
+                        ambientLight.intensity = 5.75;
+                    }
+                    if (dirLight) {
+                        dirLight.intensity = 8.2;
+                    }
+
+                    dynamicLights.forEach((light, i) => {
+                        light.intensity = 6.6;
+                        const pulse = Math.abs(Math.sin(time * 0.005 + i * 0.5));
+                        light.color.setHSL(0.1, 1, 0.3 + pulse * 0.4);
+                        light.position.x = Math.sin(time * 0.003 + i) * 15;
+                        light.position.z = Math.cos(time * 0.003 + i) * 15;
+                        light.position.y = 4 + Math.sin(time * 0.002) * 2;
+                    });
+                } else if (elapsed < 15) {
+                    // Phase 3: 交通誘導棒
+                    currentPhaseIndex = 2;
+                    phaseBadge.innerHTML = "フェーズ3: 大量パーティクル描画処理";
+                    targetObjectsCount = Math.floor(800 * presetMultiplier);
+                    targetObjectType = 'baton';
+                    guardParticles.visible = true;
+                    guardParticles.rotation.y += 0.03;
+                    gearFillLights.forEach(light => { light.intensity = 0; });
+                    if (ambientLight) {
+                        ambientLight.intensity = 0.6;
+                    }
+                    if (dirLight) {
+                        dirLight.intensity = 2.5;
+                    }
+                } else if (elapsed < 20) {
+                    // Phase 4: ワカメ
+                    currentPhaseIndex = 3;
+                    phaseBadge.innerHTML = "フェーズ4: 頂点シェーダーでのリアルタイム変形";
+                    targetObjectsCount = Math.floor(500 * presetMultiplier);
+                    targetObjectType = 'seaweed';
+                } else if (elapsed < 25) {
+                    // Phase 5: ピザ
+                    currentPhaseIndex = 4;
+                    phaseBadge.innerHTML = "フェーズ5: 半透明アルファブレンド＆オーバードロー";
+                    targetObjectsCount = Math.floor(400 * presetMultiplier);
+                    targetObjectType = 'pizza_slice';
+
+                    if (megaPizzaMesh && megaPizzaMesh.userData.steamGroup) {
+                        megaPizzaMesh.visible = true;
+                        megaPizzaMesh.rotation.y += 0.02;
+                        megaPizzaMesh.position.y = 1 + Math.sin(time * 0.003) * 0.2;
+
+                        const steams = megaPizzaMesh.userData.steamGroup.children;
+                        for (let i = 0; i < steams.length; i++) {
+                            steams[i].position.y += 0.03;
+                            steams[i].scale.setScalar(1.0 + Math.sin(time * 0.005 + i) * 0.2);
+                            if (steams[i].position.y > 6) {
+                                steams[i].position.y = 0;
+                            }
+                        }
+                    }
+                } else if (elapsed < 30) {
+                    // Phase 6: ラーメン
+                    currentPhaseIndex = 5;
+                    phaseBadge.innerText = "フェーズ6: ボリュメトリックライティング";
+                    targetObjectsCount = Math.floor(60 * presetMultiplier);
+                    targetObjectType = 'ramen';
+                } else if (elapsed < 35) {
+                    // Phase 7: パンツ
+                    currentPhaseIndex = 6;
+                    phaseBadge.innerText = "フェーズ7: 物理ベース透過・屈折シェーダー";
+                    targetObjectsCount = Math.floor(80 * presetMultiplier);
+                    targetObjectType = 'pants';
+                } else if (elapsed < 40) {
+                    // Phase 8: チョコチップクッキー
+                    currentPhaseIndex = 7;
+                    phaseBadge.innerText = "フェーズ8: テッセレーション＆ディスプレイスメントマッピング";
+                    targetObjectsCount = Math.floor(300 * presetMultiplier);
+                    targetObjectType = 'tessellation';
+                } else if (elapsed < 45) {
+                    // Phase 9: タライ
+                    currentPhaseIndex = 8;
+                    phaseBadge.innerText = "フェーズ9: 剛体物理シミュレーション";
+                    targetObjectsCount = Math.floor(2500 * presetMultiplier);
+                    targetObjectType = 'physics';
+                } else if (elapsed < 50) {
+                    // Phase 10: ジオラマ
+                    currentPhaseIndex = 9;
+                    phaseBadge.innerText = "フェーズ10: 高度なポストプロセス (SSR/SSAO/Bloom/Lens)";
+                    targetObjectsCount = Math.floor(80 * presetMultiplier);
+                    targetObjectType = 'postprocess';
+                } else if (elapsed < 55) {
+                    // Phase 11: ドリームキャスト
+                    currentPhaseIndex = 10;
+                    phaseBadge.innerText = "フェーズ11: AI 超解像推論 (アップスケーリング)";
+                    targetObjectsCount = Math.floor(150 * presetMultiplier);
+                    targetObjectType = 'dreamcast';
+
+                    if (!isInferencing) runInference();
+
+                } else {
+                    // Phase 12: 総合テスト
+                    currentPhaseIndex = 11;
+                    phaseBadge.innerText = "フェーズ12: 総合テスト";
+                    targetObjectsCount = Math.floor(500 * presetMultiplier);
+                    targetObjectType = 'all';
+
+                    guardParticles.visible = true;
+                    guardParticles.rotation.y += 0.05;
+
+                    if (!isInferencing) runInference();
+
+                    if (hallucinationMesh && hallucinationMesh.geometry) {
+                        hallucinationMesh.visible = true;
+                        hallucinationMesh.rotation.x += 0.04;
+                        hallucinationMesh.rotation.y += 0.06;
+                        hallucinationMesh.rotation.z += 0.03;
+                        const pos = hallucinationMesh.geometry.attributes.position;
+                        const origPos = hallucinationMesh.userData.originalPositions;
+                        for (let i = 0; i < pos.count; i++) {
+                            const vx = origPos.getX(i);
+                            const vy = origPos.getY(i);
+                            const vz = origPos.getZ(i);
+                            pos.setY(i, vy + Math.sin(time * 0.006 + vx * 2) * 1.0 + Math.cos(time * 0.004 + vz) * 0.6);
+                            pos.setX(i, vx + Math.cos(time * 0.005 + vy) * 0.6);
+                        }
+                        pos.needsUpdate = true;
+                    }
+
+                    if (megaPizzaMesh && megaPizzaMesh.userData.steamGroup) {
+                        megaPizzaMesh.visible = true;
+                        megaPizzaMesh.rotation.y += 0.03;
+                        megaPizzaMesh.position.y = 1 + Math.sin(time * 0.004) * 0.3;
+                        const steams = megaPizzaMesh.userData.steamGroup.children;
+                        for (let i = 0; i < steams.length; i++) {
+                            steams[i].position.y += 0.04;
+                            steams[i].scale.setScalar(1.0 + Math.sin(time * 0.005 + i) * 0.2);
+                            if (steams[i].position.y > 6) {
+                                steams[i].position.y = 0;
+                            }
+                        }
+                    }
+
+                    dynamicLights.forEach((light, i) => {
+                        light.intensity = 3.0;
+                        const pulse = Math.abs(Math.sin(time * 0.005 + i * 0.5));
+                        light.color.setHSL(0.1, 1, 0.3 + pulse * 0.4);
+                        light.position.x = Math.sin(time * 0.004 + i) * 15;
+                        light.position.z = Math.cos(time * 0.004 + i) * 15;
+                        light.position.y = 4 + Math.sin(time * 0.003) * 2;
+                    });
+                }
+
+                let currentObjectCount = 0;
+                if (currentSpawnedType === 'physics') {
+                    currentObjectCount = physicsInstancedMesh.count;
+                } else if (currentSpawnedType === 'all') {
+                    currentObjectCount = physicsInstancedMesh.count + jobObjectsGroup.length;
+                } else {
+                    currentObjectCount = jobObjectsGroup.length;
+                }
+
+                if (currentObjectCount !== targetObjectsCount || currentSpawnedType !== targetObjectType) {
+                    spawnJobObjectsCluster(targetObjectsCount, targetObjectType);
+                    currentAaIndex = 0;
+                    lastEarnedFiveThousand = Math.floor(totalScores / 5000);
+                }
+
+                // FPSが落ちると指数関数的にスコアを低下させる
+                const fpsRatio = fps / 60;
+                const fpsStability = Math.pow(fpsRatio, 2); // 60FPS未満のペナルティを強化
+
+                // ほぼ60FPSに張り付いている（安定している）場合はボーナスを付与
+                const stabilityBonus = (fps >= 59) ? 1.1 : 1.0;
+
+                let scoreEarnedThisFrame = fpsStability * stabilityBonus * 1000;
+
+                totalScores += scoreEarnedThisFrame;
+                phaseScores[currentPhaseIndex] += scoreEarnedThisFrame;
+                totalShifts = Math.floor(elapsed * 1.8);
+
+                const currentOneThousand = Math.floor(totalScores / 1000);
+                if (currentOneThousand > lastEarnedFiveThousand) {
+                    currentAaIndex += (currentOneThousand - lastEarnedFiveThousand);
+                    lastEarnedFiveThousand = currentOneThousand;
+                }
+
+                const aaArray = asciiArts[targetObjectType];
+                if (aaArray) {
+                    const frame = currentAaIndex % aaArray.length;
+                    const aaDisplay = document.getElementById('aa-display');
+                    if (aaDisplay) aaDisplay.textContent = aaArray[frame];
+                }
+
+                document.getElementById('hud-score-count').textContent = `${Math.round(totalScores).toLocaleString()}`;
+                document.getElementById('hud-shift-count').textContent = `(ループ数: ${totalShifts} 回)`;
+                document.getElementById('hud-job-objects').textContent = currentObjectCount;
+
+                if (elapsed >= BENCH_DURATION) {
+                    endBenchmark();
+                    return;
+                }
+            } else {
+                if (jobObjectsGroup.length > 0) {
+                    jobObjectsGroup.forEach(s => scene.remove(s));
+                    jobObjectsGroup = [];
+                }
+                if (physicsInstancedMesh) {
+                    physicsInstancedMesh.visible = false;
+                }
+            }
+
+            if (isBenchmarking) {
+                if (currentSpawnedType === 'physics' || currentSpawnedType === 'all') {
+                    updatePhysics(1.0 / 60.0);
+                }
+                if (currentSpawnedType !== 'physics') {
+                    jobObjectsGroup.forEach((item, idx) => {
+                        item.rotation.y += 0.02 + (idx % 3) * 0.005;
+                        item.position.y += Math.sin(clock * 3 + idx) * 0.02;
+
+                        if (currentSpawnedType === 'postprocess') {
+                            // Phase 10: ジオラマ土台は常に水平を維持し、
+                            // Y軸のみで回転させて底面が見えないようにする。
+                            item.rotation.y += 0.025;
+                            item.rotation.x = 0;
+                            item.rotation.z = 0;
+                        } else if (currentSpawnedType === 'dreamcast') {
+                            item.rotation.x += 0.05;
+                            item.rotation.z += 0.03;
+                        }
+
+                        if ((currentSpawnedType === 'ramen' || currentSpawnedType === 'all') && item.userData && item.userData.steamGroup) {
+                            const steams = item.userData.steamGroup.children;
+                            for (let i = 0; i < steams.length; i++) {
+                                const steam = steams[i];
+                                steam.position.y += steam.userData.speedY;
+                                steam.position.x += Math.sin(clock * 1.5 + steam.userData.phaseX) * 0.01;
+                                steam.position.z += Math.cos(clock * 1.5 + steam.userData.phaseZ) * 0.01;
+                                steam.scale.setScalar(steam.userData.baseScale + Math.sin(clock * 2 + i) * 0.15);
+
+                                if (steam.position.y > 4.0) {
+                                    steam.position.y = 0.5;
+                                    steam.position.x = (Math.random() - 0.5) * 1.8;
+                                    steam.position.z = (Math.random() - 0.5) * 1.8;
+                                }
+                            }
+                        }
+                    });
+                }
+
+                camera.position.x = Math.sin(clock * 0.8) * 22;
+                camera.position.z = Math.cos(clock * 0.8) * 22;
+                camera.lookAt(0, 1, 0);
+            } else {
+                camera.position.x = Math.sin(clock * 0.2) * 28;
+                camera.position.z = Math.cos(clock * 0.2) * 28;
+                camera.lookAt(0, 2, 0);
+            }
+
+            updatePostProcessing(currentPhaseIndex);
+            renderPipeline.render();
+        }
+
+        // --- Helper Utilities ---
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 3000);
+        }
+
+        function getResult() {
+            const getText = (id, fallback = '---') => {
+                const el = document.getElementById(id);
+                return el ? el.textContent.trim() : fallback;
+            };
+
+            const gpuName = getText('gpu-name-display', '不明なプロセッサ');
+            const score = getText('result-score-count', '0');
+            const resolution = getText('result-resolution', '不明');
+            const rank = getText('result-rank-title', '未測定');
+            const osInfo = getOSInfo();
+
+            const presetSelect = document.getElementById('setting-preset');
+            const preset = presetSelect ? presetSelect.value : 'normal';
+            const presetName = getPresetName(preset);
+
+            const text = `GPUベンチマーク計測結果
+
+OS: ${osInfo}
+プロセッサ: ${gpuName}
+解像度: ${resolution}
+負荷設定: ${presetName}
+
+スコア: ${score}
+称号: ${rank}
+
+#ぁMark #GPUベンチマーク
+https://kuhaku.github.io/amark/`;
+
+            return text;
+        }
+
+        async function copyResultToClipboard() {
+            const text = getResult();
+
+            try {
+                // セキュアコンテキスト(HTTPS)かつAPIが存在する場合
+                if (navigator.clipboard && window.isSecureContext) {
+                    await navigator.clipboard.writeText(text);
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    // APIが使えない環境（HTTPやiframe内の一部など）でのフォールバック
+                    fallbackCopyTextToClipboard(text);
+                }
+            } catch (err) {
+                console.warn('Clipboard API failed, trying fallback...', err);
+                fallbackCopyTextToClipboard(text);
+            }
+
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+
+            // 画面のスクロールを防ぐため、画面外の固定位置に配置
+            textArea.style.top = "-999999px";
+            textArea.style.left = "-999999px";
+            textArea.style.position = "fixed";
+            textArea.setAttribute('readonly', ''); // iOSでの仮想キーボード表示を防ぐ
+
+            document.body.appendChild(textArea);
+
+            const isIOS = navigator.userAgent.match(/ipad|iphone/i);
+            const isMac = navigator.userAgent.match(/macintosh/i);
+
+            // iOSおよびiPadOS向けの特別処理 (Macのタッチデバイス判定含む)
+            if (isIOS || (isMac && navigator.maxTouchPoints && navigator.maxTouchPoints > 2)) {
+                const range = document.createRange();
+                range.selectNodeContents(textArea);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                textArea.setSelectionRange(0, 999999);
+            } else {
+                // PCやAndroid向けの標準的な選択処理
+                textArea.focus();
+                textArea.select();
+            }
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('計測結果をコピーしました！');
+                } else {
+                    showToast('コピーに失敗しました。手動でコピーしてください。');
+                }
+            } catch (err) {
+                console.error('Fallback copy failed:', err);
+                showToast('コピーに失敗しました。手動でコピーしてください。');
+            }
+
+            document.body.removeChild(textArea);
+        }
+
+        // --- Event Listeners & Init ---
+        window.addEventListener('load', async () => {
+            // Initialize OS Info before updating UI
+            await fetchOSInfo();
+            await init3D();
+            await updateGPUUI();
+
+            requestAnimationFrame(animate);
+
+            const footerPreset = document.getElementById('setting-preset');
+            const modalPreset = document.getElementById('setting-preset-modal');
+
+            footerPreset.addEventListener('change', () => {
+                modalPreset.value = footerPreset.value;
+            });
+            modalPreset.addEventListener('change', () => {
+                footerPreset.value = modalPreset.value;
+            });
+
+            document.getElementById('btn-start-benchmark').addEventListener('click', startBenchmark);
+            document.getElementById('btn-retry').addEventListener('click', () => {
+                document.getElementById('result-modal').classList.add('hidden');
+                startBenchmark();
+            });
+            document.getElementById('btn-copy-result').addEventListener('click', copyResultToClipboard);
+
+            document.getElementById('btn-show-gpu-spec').addEventListener('click', () => {
+                document.getElementById('gpu-spec-modal').classList.remove('hidden');
+            });
+            document.getElementById('btn-close-gpu-spec').addEventListener('click', () => {
+                document.getElementById('gpu-spec-modal').classList.add('hidden');
+            });
+
+            document.getElementById('btn-toggle-details').addEventListener('click', () => {
+                const list = document.getElementById('phase-details-list');
+                const icon = document.getElementById('icon-toggle-details');
+                const text = document.getElementById('text-toggle-details');
+
+                if (list.classList.contains('hidden')) {
+                    list.classList.remove('hidden');
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                    text.textContent = '詳細データを閉じる';
+                } else {
+                    list.classList.add('hidden');
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                    text.textContent = '詳細データを見る';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
